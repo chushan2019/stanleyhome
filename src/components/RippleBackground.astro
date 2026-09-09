@@ -1,0 +1,401 @@
+---
+/**
+ * 鼠标涟漪背景 —— WebGL 双缓冲流场实现（架构与机制复刻，GLSL 自写）：
+ * 1) trail pass：鼠标点以高斯"画笔"写入 ping-pong FBO，每帧乘 decay 自消散；
+ * 2) 渲染 pass：fbm 噪声背景按 trail 纹理的梯度做 UV 扭曲 + 近光标漩涡，
+ *    叠加跟随光标的光核/光晕、grain 颗粒与暗角。
+ * 降级：prefers-reduced-motion 或无 WebGL 时不启动，保留 Hero 自带 CSS 光晕。
+ */
+---
+
+<canvas class="sh-ripple" aria-hidden="true"></canvas>
+
+<script>
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.sh-ripple');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (canvas && !reduced) {
+    const gl = canvas.getContext('webgl', {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: false,
+    });
+
+    if (gl) {
+      initRipple(gl, canvas);
+    }
+  }
+
+  function initRipple(gl: WebGLRenderingContext, canvas: HTMLCanvasElement) {
+    const MAX_POINTS = 24;
+
+    /* ---------- 调色板（跟随主题切换） ---------- */
+    const palettes = {
+      dark: {
+        bg: [0.039, 0.039, 0.039],
+        tint: [0.404, 0.600, 0.996], // #6799fe 品牌蓝
+        cloud: [0.72, 0.8, 0.98],
+        intensity: 1.0,
+      },
+      light: {
+        bg: [0.976, 0.973, 0.973], // #f9f8f8
+        tint: [0.302, 0.420, 0.996], // #4d6bfe
+        cloud: [1.0, 1.0, 1.0],
+        intensity: 0.55,
+      },
+    };
+    const themeKey = () =>
+      document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+
+    /* ---------- shader ---------- */
+    const VERT = `
+      attribute vec2 a_pos;
+      varying vec2 v_uv;
+      void main() {
+        v_uv = a_pos * 0.5 + 0.5;
+        gl_Position = vec4(a_pos, 0.0, 1.0);
+      }`;
+
+    // 拖尾累积：上一帧 * decay + 本帧鼠标高斯光斑
+    const TRAIL_FRAG = `
+      precision mediump float;
+      uniform sampler2D u_prev;
+      uniform vec2 u_points[${MAX_POINTS}];
+      uniform float u_pointStrength[${MAX_POINTS}];
+      uniform int u_pointCount;
+      uniform float u_brush;
+      uniform float u_decay;
+      uniform float u_aspect;
+      varying vec2 v_uv;
+      void main() {
+        float base = texture2D(u_prev, v_uv).r * u_decay;
+        float add = 0.0;
+        for (int i = 0; i < ${MAX_POINTS}; i++) {
+          if (i >= u_pointCount) break;
+          vec2 d = v_uv - u_points[i];
+          d.x *= u_aspect;
+          float r2 = u_brush * u_brush;
+          add += u_pointStrength[i] * exp(-dot(d, d) / r2);
+        }
+        gl_FragColor = vec4(clamp(base + add, 0.0, 1.2), 0.0, 0.0, 1.0);
+      }`;
+
+    // 主渲染：fbm 噪声 + trail 梯度扭曲 + 漩涡 + 光晕 + 涟漪环 + grain + 暗角
+    const MAIN_FRAG = `
+      precision mediump float;
+      uniform sampler2D u_trail;
+      uniform float u_time;
+      uniform vec2 u_lightPos;
+      uniform float u_aspect;
+      uniform vec3 u_bg;
+      uniform vec3 u_tint;
+      uniform vec3 u_cloud;
+      uniform float u_intensity;
+      varying vec2 v_uv;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+          mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+          u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 4; i++) {
+          v += a * noise(p);
+          p = p * 2.03 + vec2(13.7, 9.1);
+          a *= 0.5;
+        }
+        return v;
+      }
+      vec2 rot(vec2 p, float a) {
+        float s = sin(a), c = cos(a);
+        return mat2(c, -s, s, c) * p;
+      }
+
+      void main() {
+        vec2 uv = v_uv;
+        uv.x *= u_aspect;
+        vec2 texel = vec2(1.0 / (800.0 * u_aspect), 1.0 / 800.0);
+
+        float trail = texture2D(u_trail, v_uv).r;
+        float gx = texture2D(u_trail, v_uv + vec2(texel.x, 0.0)).r
+                 - texture2D(u_trail, v_uv - vec2(texel.x, 0.0)).r;
+        float gy = texture2D(u_trail, v_uv + vec2(0.0, texel.y)).r
+                 - texture2D(u_trail, v_uv - vec2(0.0, texel.y)).r;
+        vec2 grad = vec2(gx, gy) * 55.0;
+
+        // 近光标漩涡：随距离指数衰减
+        vec2 toLight = uv - vec2(u_lightPos.x * u_aspect, u_lightPos.y);
+        float dL = length(toLight);
+        vec2 p = uv;
+        p = rot(p - u_lightPos, -exp(-dL * 3.2) * 0.55 * u_intensity);
+
+        // 拖尾梯度扭曲背景噪声场 —— 涟漪的本体
+        p += grad * (0.02 + trail * 0.05) * u_intensity;
+
+        float drift = u_time * 0.02;
+        float n = fbm(p * 3.0 + vec2(drift, -drift * 0.7));
+        float warp = fbm(p * 2.2 + n * 1.4 + vec2(-drift * 0.8, drift));
+
+        // 缓慢漂浮的柔光云团（对应截图里的大片模糊亮斑）
+        float cloud = smoothstep(0.42, 0.82, warp) * (0.28 + 0.5 * trail);
+        cloud *= u_intensity;
+
+        // 跟随光标的核光 + 大范围光晕
+        float core = exp(-dL * dL * 26.0) * 0.16 * u_intensity;
+        float halo = exp(-dL * 3.0) * 0.12 * u_intensity;
+
+        // 涟漪环：从光标向外扩散的细环纹，被 trail 强度调制
+        float ring = sin(dL * 42.0 - u_time * 3.0) * 0.5 + 0.5;
+        ring *= exp(-dL * 5.0) * trail * 0.35 * u_intensity;
+
+        vec3 col = u_bg;
+        col = mix(col, u_tint * 0.55, cloud * 0.65);
+        col += u_cloud * (core + halo + ring * 0.5);
+        col += u_tint * trail * 0.05 * u_intensity;
+
+        // grain 颗粒 + 暗角
+        col += (hash(gl_FragCoord.xy + fract(u_time)) - 0.5) * 0.028;
+        float vig = smoothstep(1.35, 0.35, length(v_uv - 0.5) * 1.55);
+        col *= mix(0.72, 1.0, vig);
+
+        gl_FragColor = vec4(col, 1.0);
+      }`;
+
+    /* ---------- 编译/程序 ---------- */
+    function compile(type: number, src: string) {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        throw new Error('shader compile failed');
+      }
+      return s;
+    }
+    function program(frag: string) {
+      const p = gl.createProgram()!;
+      gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT));
+      gl.attachShader(p, compile(gl.FRAGMENT_SHADER, frag));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) ?? '');
+      return p;
+    }
+
+    const trailProg = program(TRAIL_FRAG);
+    const mainProg = program(MAIN_FRAG);
+
+    const quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    // 两个 program 都只有一个 attribute，链接后必然落在 index 0
+    gl.enableVertexAttribArray(0);
+
+    /* ---------- ping-pong FBO ---------- */
+    let texW = 0, texH = 0;
+    let fbos: WebGLFramebuffer[] = [];
+    let textures: WebGLTexture[] = [];
+
+    function makeTarget() {
+      const tex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texW, texH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const filt = gl.LINEAR;
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const fb = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      return { tex, fb };
+    }
+    function allocTargets() {
+      for (const fb of fbos) gl.deleteFramebuffer(fb);
+      for (const t of textures) gl.deleteTexture(t);
+      const made = [makeTarget(), makeTarget()];
+      fbos = made.map((m) => m.fb);
+      textures = made.map((m) => m.tex);
+      gl.clearColor(0, 0, 0, 1);
+      for (const fb of fbos) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    const dpr = Math.min(devicePixelRatio, 1.75);
+    function resize() {
+      const r = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.round(r.width * dpr));
+      const h = Math.max(1, Math.round(r.height * dpr));
+      if (w === texW && h === texH) return;
+      texW = w;
+      texH = h;
+      canvas.width = w;
+      canvas.height = h;
+      allocTargets();
+    }
+    resize();
+    addEventListener('resize', resize);
+
+    /* ---------- 指针采集 ---------- */
+    type Pt = { x: number; y: number; s: number };
+    let queue: Pt[] = [];
+    let lastX = 0, lastY = 0, seen = false;
+    let lightX = 0.5, lightY = 0.6;
+
+    function pushPoint(cx: number, cy: number) {
+      const r = canvas.getBoundingClientRect();
+      const x = (cx - r.left) / r.width;
+      const y = 1 - (cy - r.top) / r.height;
+      if (x < -0.4 || x > 1.4 || y < -0.4 || y > 1.4) return;
+      let s = 1;
+      if (seen) {
+        const sp = Math.hypot(cx - lastX, cy - lastY);
+        s = 0.4 + Math.min(1.6, sp / 14); // 移动越快，划出的涟漪越亮
+      }
+      seen = true;
+      lastX = cx;
+      lastY = cy;
+      lightX = Math.min(1, Math.max(0, x));
+      lightY = Math.min(1, Math.max(0, y));
+      queue.push({ x, y, s });
+      if (queue.length > MAX_POINTS) queue.splice(0, queue.length - MAX_POINTS);
+    }
+
+    addEventListener('pointermove', (e) => pushPoint(e.clientX, e.clientY), { passive: true });
+    addEventListener('pointerdown', (e) => {
+      pushPoint(e.clientX, e.clientY);
+      // 点击时补一发高强度光斑
+      const r = canvas.getBoundingClientRect();
+      queue.push({ x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height, s: 2.4 });
+    }, { passive: true });
+
+    /* ---------- 可见时才跑（省电） ---------- */
+    let visible = true;
+    const io = new IntersectionObserver((es) => (visible = es[0].isIntersecting), { threshold: 0 });
+    io.observe(canvas);
+
+    /* ---------- 渲染循环 ---------- */
+    const trailU = {
+      prev: gl.getUniformLocation(trailProg, 'u_prev'),
+      points: gl.getUniformLocation(trailProg, 'u_points[0]'),
+      strength: gl.getUniformLocation(trailProg, 'u_pointStrength[0]'),
+      count: gl.getUniformLocation(trailProg, 'u_pointCount'),
+      brush: gl.getUniformLocation(trailProg, 'u_brush'),
+      decay: gl.getUniformLocation(trailProg, 'u_decay'),
+      aspect: gl.getUniformLocation(trailProg, 'u_aspect'),
+    };
+    const mainU = {
+      trail: gl.getUniformLocation(mainProg, 'u_trail'),
+      time: gl.getUniformLocation(mainProg, 'u_time'),
+      lightPos: gl.getUniformLocation(mainProg, 'u_lightPos'),
+      aspect: gl.getUniformLocation(mainProg, 'u_aspect'),
+      bg: gl.getUniformLocation(mainProg, 'u_bg'),
+      tint: gl.getUniformLocation(mainProg, 'u_tint'),
+      cloud: gl.getUniformLocation(mainProg, 'u_cloud'),
+      intensity: gl.getUniformLocation(mainProg, 'u_intensity'),
+    };
+
+    let read = 0;
+    const t0 = performance.now();
+    const coarse = matchMedia('(pointer: coarse)').matches;
+
+    function draw() {
+      const now = (performance.now() - t0) / 1000;
+      const pal = palettes[themeKey()];
+      const aspect = texW / texH;
+
+      /* pass 1: 更新拖尾 */
+      const w = write();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbos[w]);
+      gl.viewport(0, 0, texW, texH);
+      gl.useProgram(trailProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textures[read]);
+      gl.uniform1i(trailU.prev, 0);
+      gl.uniform1f(trailU.decay, 0.982);
+      gl.uniform1f(trailU.brush, coarse ? 0.16 : 0.11);
+      gl.uniform1f(trailU.aspect, aspect);
+      const pts = new Float32Array(MAX_POINTS * 2);
+      const str = new Float32Array(MAX_POINTS);
+      for (let i = 0; i < queue.length; i++) {
+        pts[i * 2] = queue[i].x;
+        pts[i * 2 + 1] = queue[i].y;
+        str[i] = queue[i].s * 0.12;
+      }
+      gl.uniform2fv(trailU.points, pts);
+      gl.uniform1fv(trailU.strength, str);
+      gl.uniform1i(trailU.count, queue.length);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      queue.length = 0;
+
+      /* pass 2: 渲染到屏幕 */
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, texW, texH);
+      gl.useProgram(mainProg);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textures[w]);
+      gl.uniform1i(mainU.trail, 0);
+      gl.uniform1f(mainU.time, now);
+      gl.uniform1f(mainU.aspect, aspect);
+      gl.uniform2f(mainU.lightPos, lightX, lightY);
+      gl.uniform3fv(mainU.bg, pal.bg);
+      gl.uniform3fv(mainU.tint, pal.tint);
+      gl.uniform3fv(mainU.cloud, pal.cloud);
+      gl.uniform1f(mainU.intensity, pal.intensity);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      read = w;
+    }
+    function write() {
+      return 1 - read;
+    }
+
+    function loop() {
+      if (visible && !document.hidden) draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    /* 主题切换后清空拖尾，避免旧色残影 */
+    new MutationObserver(() => {
+      gl.clearColor(0, 0, 0, 1);
+      for (const fb of fbos) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }).observe(document.documentElement, {
+      attributeFilter: ['data-theme'],
+      attributes: true,
+    });
+  }
+</script>
+
+<style>
+  .sh-ripple {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+  }
+</style>

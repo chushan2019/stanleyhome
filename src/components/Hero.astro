@@ -2,13 +2,16 @@
 import { withBase } from '../utils/base';
 import { profile } from '../data/profile';
 import CopyBar from './CopyBar.astro';
+import RippleBackground from './RippleBackground.astro';
 
 const works = withBase('/works');
 const notes = withBase('/notes');
 const about = withBase('/about');
 ---
 
-<section class="hero sh-container">
+<section class="hero-stage">
+  <RippleBackground />
+  <div class="hero sh-container">
   <div class="glow" aria-hidden="true"></div>
 
   <p class="kicker t-mono sh-enter" style="--enter-delay:0s">
@@ -36,9 +39,14 @@ const about = withBase('/about');
     <CopyBar text={profile.email} prefix="✉" />
     <span class="bar-hint t-caption">点右侧按钮，复制邮箱，给我写信</span>
   </div>
+  </div>
 </section>
 
 <style>
+  .hero-stage {
+    position: relative;
+  }
+
   .hero {
     position: relative;
     padding-top: clamp(88px, 14vh, 160px);

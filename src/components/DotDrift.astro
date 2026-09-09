@@ -1,0 +1,340 @@
+---
+/**
+ * 「漫天雪花 ⇌ 聚成世界地图」点阵组件 —— 复刻 harness hero 右半区粒子效果。
+ * 原站实现（已从 chunk776 的 GLSL 源码逐行分析）：
+ *   R3F instancedMesh，每实例持有【形态位 target（dot-matrix 地图采样）】与
+ *   【散布位 scattered（椭圆球壳随机点）】，uAssembly 插值；
+ *   附加：边缘 jitter/漂移、滚动 scatter 打散、汇聚后径向波浪、
+ *   鼠标径向斥力+方向噪声、未聚合个体漂浮、光源明暗、additive 微光闪烁。
+ * 这里用零依赖自建 WebGL 复刻同一套数学（无 three.js）。
+ * 地图形状由本地噪声程序生成（等价 SVG 采样结果），不引用原站素材。
+ * 降级：reduced-motion / 无 WebGL / 移动端 不渲染。
+ */
+---
+
+<div class="dot-drift" aria-hidden="true">
+  <canvas></canvas>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLDivElement>('div.dot-drift');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (root && !reduced && matchMedia('(min-width: 768px)').matches) {
+    const canvas = root.querySelector('canvas')!;
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: false });
+    if (gl) init(gl, canvas, root);
+  }
+
+  function init(gl: WebGLRenderingContext, canvas: HTMLCanvasElement, root: HTMLElement) {
+    /* ============ 1. 程序生成 dot-matrix 世界地图（128×64 格） ============ */
+    const MW = 128, MH = 64;
+    const hash = (x: number, y: number) => {
+      let n = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263);
+      n = Math.imul(n ^ (n >>> 13), 1274126177);
+      return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+    };
+    const vnoise = (x: number, y: number) => {
+      const ix = Math.floor(x), iy = Math.floor(y);
+      const fx = x - ix, fy = y - iy;
+      const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+      const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+      return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+    };
+    const seeds = [
+      { lon: -100, lat: 45, r: 20 }, { lon: -105, lat: 32, r: 12 },
+      { lon: -72, lat: 45, r: 8 },  { lon: -60, lat: 55, r: 10 },
+      { lon: -80, lat: 20, r: 5 },  { lon: -60, lat: -5, r: 10 },
+      { lon: -65, lat: -25, r: 8 }, { lon: -70, lat: -45, r: 4 },
+      { lon: 15, lat: 50, r: 10 },  { lon: 95, lat: 52, r: 22 },
+      { lon: 115, lat: 30, r: 10 }, { lon: 78, lat: 22, r: 7 },
+      { lon: 45, lat: 8, r: 6 },    { lon: 22, lat: 5, r: 12 },
+      { lon: 30, lat: -15, r: 8 },  { lon: 135, lat: -25, r: 8 },
+      { lon: 172, lat: -42, r: 3 }, { lon: -42, lat: 74, r: 7 },
+      { lon: 40, lat: 75, r: 14 },  { lon: 100, lat: 73, r: 12 },
+      { lon: -20, lat: -55, r: 6 },
+    ];
+    const land = new Float32Array(MW * MH);
+    for (let y = 0; y < MH; y++) {
+      const lat = 90 - (y / MH) * 180;
+      const cosLat = Math.cos((lat * Math.PI) / 180);
+      for (let x = 0; x < MW; x++) {
+        const lon = (x / MW) * 360 - 180;
+        let v = 0;
+        for (const s of seeds) {
+          let dl = lon - s.lon;
+          if (dl > 180) dl -= 360; else if (dl < -180) dl += 360;
+          const dla = lat - s.lat;
+          const d = Math.sqrt(dl * dl * cosLat * cosLat + dla * dla);
+          if (d < s.r * 1.5) v += Math.max(0, 1 - d / s.r);
+        }
+        v += vnoise(x * 0.11, y * 0.11) * 0.55 - 0.27;
+        v = Math.max(0, Math.min(1, (v - 0.32) * 2.2));
+        if (Math.abs(lat) > 76) v *= 0.5;
+        land[y * MW + x] = v;
+      }
+    }
+
+    /* ============ 2. 实例：target（格位）+ scattered（椭圆球壳） ============ */
+    const HX = 5.5, HY = 3.6; // 世界半宽/半高；canvas 世界以 2*HY 对应高度
+    const targets: number[][] = [];
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        const b = land[y * MW + x];
+        if (b > 0.15 && hash(x * 2654435761, y * 40503 + 7) < b * 0.55) {
+          let nb = 0, tot = 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              if (!dx && !dy) continue;
+              tot++;
+              const nx = x + dx, ny = y + dy;
+              if (nx < 0 || ny < 0 || nx >= MW || ny >= MH || land[ny * MW + nx] <= 0.05) nb++;
+            }
+          targets.push([
+            (x / MW - 0.5) * 2 * HX,
+            (0.5 - y / MH) * 2 * HY,
+            nb / tot,               // edge
+            Math.min(1, 0.55 + b),  // opacity ~ 亮度
+          ]);
+        }
+      }
+    }
+    const N = targets.length;
+    const data = new Float32Array(N * 8); // tx ty sx sy | edge idx op tz
+    for (let i = 0; i < N; i++) {
+      const [tx, ty, edge, op] = targets[i];
+      // 散布位：椭圆球壳随机点（原站 3*(.4+.6r)，z*0.5）
+      const th = hash(i * 3 + 1, i * 7 + 2) * Math.PI * 2;
+      const ph = Math.acos(2 * hash(i * 13 + 5, i * 17 + 9) - 1);
+      const rr = 2.6 * (0.5 + 0.5 * hash(i * 19 + 3, i * 23 + 11));
+      const j = i * 8;
+      data[j] = tx;
+      data[j + 1] = ty;
+      data[j + 2] = Math.sin(ph) * Math.cos(th) * rr * 1.35;
+      data[j + 3] = Math.sin(ph) * Math.sin(th) * rr;
+      data[j + 4] = edge;
+      data[j + 5] = i;
+      data[j + 6] = op;
+      data[j + 7] = hash(i * 29 + 13, i * 31 + 17) * 1.2; // 聚合 z（景深）
+    }
+
+    /* ============ 3. shader ============ */
+    const VS = `
+      precision mediump float;
+      attribute vec2 a_corner;
+      attribute vec4 a_data;  // tx ty sx sy
+      attribute vec4 a_aux;   // edge index opacity tz
+      uniform float u_time, u_assembly, u_scatter;
+      uniform vec2 u_half;    // HX, HY -> ndc = world / half
+      uniform vec2 u_mouse; uniform float u_mouseR, u_mouseS, u_mouseD;
+      uniform float u_dotSize; // ndc 尺寸（y 单位）
+      varying float v_op, v_tw, v_glow;
+      void main() {
+        float edge = a_aux.x;
+        float idx = a_aux.y;
+        float t = u_assembly;
+        vec3 target = vec3(a_data.xy, a_aux.w);
+        vec3 scat = vec3(a_data.z, a_data.w, 0.0);
+        vec3 center = mix(scat, target, t);
+
+        // 未聚合：雪花各自漂浮
+        if (t < 0.999) {
+          float sw = 1.0 - t;
+          center.x += sin(u_time * 0.5 + idx * 0.1) * 0.2 * sw;
+          center.y += cos(u_time * 0.4 + idx * 0.07) * 0.22 * sw;
+          center.z += sin(u_time * 0.3 + idx * 0.13) * 0.15 * sw;
+        }
+        // 边缘抖动与缓慢漂移（loose）
+        float loose = mix(0.25, 1.0, edge) * t;
+        center.x += sin(u_time * 0.5 + idx * 0.53) * 0.05 * loose;
+        center.y += cos(u_time * 0.42 + idx * 0.71) * 0.05 * loose;
+        center.z += sin(u_time * 0.36 + idx * 0.91) * 0.06 * loose;
+        // 滚动打散：朝散布位漂移，边缘先散
+        float disperse = u_scatter * mix(0.5, 1.0, edge);
+        center = mix(center, scat, disperse);
+        center.z += sin(u_time * 0.6 + idx * 0.3) * disperse * 0.6;
+        // 汇聚完成后的径向波浪（中心处淡出防"浮起"）
+        float dist = length(center.xy);
+        center.z += sin(dist * 3.0 - u_time * 1.5) * 0.06 * t * smoothstep(0.0, 3.0, dist);
+
+        // 鼠标径向斥力 + 方向噪声
+        vec2 toM = center.xy - u_mouse;
+        float dM = length(toM);
+        float force = 0.0;
+        if (dM < u_mouseR && dM > 0.001) {
+          float k = 1.0 - dM / u_mouseR;
+          force = k * k * k * u_mouseS * t;
+          vec2 dir = toM / dM;
+          float na = sin(idx * 0.37 + u_time * 0.5) * u_mouseD;
+          dir = vec2(dir.x * cos(na) - dir.y * sin(na), dir.x * sin(na) + dir.y * cos(na));
+          center.xy += dir * force * 2.0;
+          center.z += sin(idx * 1.7 + u_time) * force * 0.8;
+        }
+
+        // 透视投影（复刻原站相机视角）：中心固定、尺寸不随 z 变，保持 2D 排布
+        float focal = 6.0;
+        float zz = focal - center.z * 0.55;
+        vec2 ndc = center.xy / u_half;
+        float sz = u_dotSize * focal / zz;
+        ndc += a_corner * vec2(sz * u_half.y / u_half.x, sz);
+        gl_Position = vec4(ndc, 0.0, 1.0);
+        v_op = a_aux.z * (0.75 + 0.25 * (focal / zz));
+        v_tw = 0.9 + 0.1 * sin(u_time * 1.5 + idx * 0.37 + center.x * 5.0 + center.y * 3.0);
+        v_glow = clamp(1.0 - dM / (u_mouseR * 1.3), 0.0, 1.0) * t;
+      }`;
+
+    const FS = `
+      precision mediump float;
+      uniform vec3 u_color;
+      varying float v_op, v_tw, v_glow;
+      void main() {
+        float a = v_op * v_tw * (1.0 + v_glow * 0.7) * 0.85;
+        vec3 col = u_color * (1.0 + v_glow * 1.5);
+        gl_FragColor = vec4(col * a, a); // premultiplied
+      }`;
+
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? 'shader');
+      return s;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    /* ============ 4. 几何打包（手动实例化：6 顶点/方片） ============ */
+    const CORNER = [-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1];
+    const STRIDE = 10;
+    const packed = new Float32Array(N * 6 * STRIDE);
+    for (let i = 0; i < N; i++) {
+      for (let v = 0; v < 6; v++) {
+        const o = (i * 6 + v) * STRIDE;
+        packed[o] = CORNER[v * 2];
+        packed[o + 1] = CORNER[v * 2 + 1];
+        packed.set(data.subarray(i * 8, i * 8 + 8), o + 2);
+      }
+    }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, packed, gl.STATIC_DRAW);
+    const bind = (name: string, size: number, off: number) => {
+      const loc = gl.getAttribLocation(prog, name);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, STRIDE * 4, off * 4);
+    };
+    bind('a_corner', 2, 0);
+    bind('a_data', 4, 2);
+    bind('a_aux', 4, 6);
+
+    const U = (n: string) => gl.getUniformLocation(prog, n);
+    const u = {
+      time: U('u_time'), assembly: U('u_assembly'), scatter: U('u_scatter'),
+      half: U('u_half'), mouse: U('u_mouse'), mouseR: U('u_mouseR'),
+      mouseS: U('u_mouseS'), mouseD: U('u_mouseD'), dot: U('u_dotSize'), color: U('u_color'),
+    };
+
+    /* ============ 5. 尺寸与主题 ============ */
+    const dpr = Math.min(devicePixelRatio, 1.75);
+    let W = 0, H = 0, HYv = HY;
+    function resize() {
+      const r = root.getBoundingClientRect();
+      W = Math.max(1, Math.round(r.width * dpr));
+      H = Math.max(1, Math.round(r.height * dpr));
+      canvas.width = W;
+      canvas.height = H;
+      HYv = HX * (H / W); // 世界纵向半幅随画布比例（x 固定 11 单位）
+    }
+    resize();
+    addEventListener('resize', resize);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied
+    const COLORS: Record<'dark' | 'light', Float32Array> = {
+      dark: new Float32Array([0.8, 0.86, 0.98]),
+      light: new Float32Array([0.42, 0.55, 0.92]),
+    };
+    const theme = () => (document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+    /* ============ 6. 状态与循环 ============ */
+    let assembly = 0, scatter = 0, hover = false, visible = true;
+    let mx = 99, my = 99, scrollTarget = 0;
+    const t0 = performance.now();
+
+    addEventListener('pointermove', (e) => {
+      const r = canvas.getBoundingClientRect();
+      const lx = (e.clientX - r.left) / r.width;
+      const ly = (e.clientY - r.top) / r.height;
+      hover = lx > -0.15 && lx < 1.15 && ly > -0.15 && ly < 1.15;
+      if (hover) {
+        mx = (lx * 2 - 1) * HX;
+        my = (1 - ly * 2) * HYv;
+      }
+    }, { passive: true });
+    document.addEventListener('visibilitychange', () => { hover = hover && !document.hidden; });
+    new IntersectionObserver((es) => (visible = es[0].isIntersecting), { threshold: 0.05 }).observe(root);
+    addEventListener('scroll', () => {
+      const r = root.getBoundingClientRect();
+      scrollTarget = Math.min(1, Math.max(0, -r.top / (innerHeight * 0.7)));
+    }, { passive: true });
+
+    function frame() {
+      requestAnimationFrame(frame);
+      if (!visible || document.hidden) return;
+      const now = (performance.now() - t0) / 1000;
+      const want = hover ? 1 : 0;
+      assembly += (want - assembly) * 0.028;
+      if (!hover && assembly < 0.0015) assembly = 0;
+      if (hover && assembly > 0.9985) assembly = 1;
+      scatter += (scrollTarget * 0.5 - scatter) * 0.04;
+
+      gl.viewport(0, 0, W, H);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(u.time, now);
+      gl.uniform1f(u.assembly, assembly);
+      gl.uniform1f(u.scatter, scatter);
+      gl.uniform2f(u.half, HX, HYv);
+      gl.uniform2f(u.mouse, mx, my);
+      gl.uniform1f(u.mouseR, 1.5);
+      gl.uniform1f(u.mouseS, 0.4);
+      gl.uniform1f(u.mouseD, 0.8);
+      gl.uniform1f(u.dot, 0.0022); // ≈4px 高的方点
+      gl.uniform3fv(u.color, COLORS[theme()]);
+      gl.drawArrays(gl.TRIANGLES, 0, N * 6);
+    }
+    frame();
+  }
+</script>
+
+<style>
+  .dot-drift {
+    position: absolute;
+    top: 0;
+    right: calc(50% - 620px);
+    width: min(48vw, 600px);
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .dot-drift canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  @media (max-width: 1279px) {
+    .dot-drift {
+      right: 0;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .dot-drift {
+      display: none;
+    }
+  }
+</style>

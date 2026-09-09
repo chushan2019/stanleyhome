@@ -3,6 +3,7 @@ import { withBase } from '../utils/base';
 import { profile } from '../data/profile';
 import CopyBar from './CopyBar.astro';
 import RippleBackground from './RippleBackground.astro';
+import DotDrift from './DotDrift.astro';
 
 const works = withBase('/works');
 const notes = withBase('/notes');
@@ -11,6 +12,7 @@ const about = withBase('/about');
 
 <section class="hero-stage">
   <RippleBackground />
+  <DotDrift />
   <div class="hero sh-container">
   <div class="glow" aria-hidden="true"></div>
 

@@ -1,0 +1,171 @@
+---
+import { withBase } from '../../utils/base';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SectionHeading from '../../components/SectionHeading.astro';
+
+const notes = await getCollection('notes');
+const link = (p: string) => withBase(p);
+---
+
+<BaseLayout title="读书笔记 · Stanley · 初山">
+  <section class="sh-section">
+    <div class="sh-container">
+      <SectionHeading
+        kicker="READING NOTES"
+        title="读书笔记"
+        desc="每本书一页：全章总结、概念摘录、金句，和一张我判断后选型的结构图。"
+      />
+
+      <div class="list">
+        {
+          notes.map((n, i) => (
+            <a class="row sh-reveal" href={link(`/notes/${n.id}`)} style={`--reveal-delay:${i * 0.07}s`}>
+              <div class="cover" aria-hidden="true">
+                {n.data.cover ? <img src={link(n.data.cover)} alt="" /> : <span class="ph-book">书</span>}
+              </div>
+              <div class="info">
+                <div class="meta">
+                  <span class:list={['st', n.data.status]}>{n.data.status === 'done' ? '读完' : '在读'}</span>
+                  {n.data.doneDate && <span class="date t-mono">{n.data.doneDate}</span>}
+                </div>
+                <h2 class="t-title bk">{n.data.book}</h2>
+                <p class="au">{n.data.author}</p>
+                <p class="sum t-body">{n.data.summary}</p>
+              </div>
+              <span class="arr" aria-hidden="true">→</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sh-space-4);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 76px 1fr 28px;
+    gap: var(--sh-space-6);
+    align-items: start;
+    padding: var(--sh-space-6);
+    border: 1px solid var(--sh-border-default);
+    border-radius: var(--sh-radius-card);
+    background: var(--sh-bg-surface-3);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  .row:hover {
+    border-color: var(--sh-border-hover);
+    background: var(--sh-bg-surface-1);
+    transform: translateY(-2px);
+  }
+
+  .cover {
+    width: 76px;
+    aspect-ratio: 3 / 4.2;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--sh-border-default);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ph-book {
+    font-family: var(--sh-font-display);
+    font-size: 26px;
+    color: var(--sh-text-placeholder);
+    background: linear-gradient(160deg, var(--sh-bg-surface-5), var(--sh-bg-surface-2));
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sh-space-3);
+    margin-bottom: var(--sh-space-2);
+  }
+
+  .st {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: var(--sh-radius-pill);
+    border: 1px solid var(--sh-border-divider);
+    color: var(--sh-text-description);
+  }
+
+  .st.done {
+    color: var(--sh-brand);
+    border-color: color-mix(in srgb, var(--sh-brand) 45%, transparent);
+  }
+
+  .st.reading {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.4);
+  }
+
+  .date {
+    color: var(--sh-text-placeholder);
+    text-transform: none;
+  }
+
+  .bk {
+    font-size: 20px;
+  }
+
+  .au {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--sh-text-description);
+  }
+
+  .sum {
+    margin-top: var(--sh-space-3);
+    color: var(--sh-text-description);
+    font-size: 15px;
+  }
+
+  .arr {
+    font-size: 20px;
+    color: var(--sh-text-placeholder);
+    transition: transform 0.25s ease, color 0.2s ease;
+    align-self: center;
+  }
+
+  .row:hover .arr {
+    color: var(--sh-brand);
+    transform: translateX(4px);
+  }
+
+  @media (max-width: 639px) {
+    .row {
+      grid-template-columns: 56px 1fr;
+      gap: var(--sh-space-4);
+    }
+
+    .cover {
+      width: 56px;
+    }
+
+    .arr {
+      display: none;
+    }
+  }
+</style>

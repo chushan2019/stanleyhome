@@ -1,0 +1,133 @@
+---
+import { withBase } from '../utils/base';
+import { profile } from '../data/profile';
+
+const cols = [
+  {
+    title: '站点',
+    links: [
+      { href: withBase('/works'), label: '作品集' },
+      { href: withBase('/notes'), label: '读书笔记' },
+      { href: withBase('/blog'), label: '博客' },
+      { href: withBase('/about'), label: '关于我' },
+    ],
+  },
+];
+---
+
+<footer class="sh-footer sh-divider">
+  <div class="sh-container inner">
+    <div class="brand-col">
+      <div class="mark">初山 · STANLEY</div>
+      <p class="desc">{profile.tagline}</p>
+    </div>
+
+    {
+      cols.map((col) => (
+        <div class="link-col">
+          <div class="col-title t-mono">{col.title}</div>
+          {col.links.map((l) => (
+            <a class="foot-link" href={l.href}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      ))
+    }
+
+    <div class="link-col">
+      <div class="col-title t-mono">找到我</div>
+      {
+        profile.socials.map((s) => (
+          <a class="foot-link" href={s.href} target="_blank" rel="noopener">
+            {s.label}
+          </a>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="sh-container copyright">
+    <span>© {new Date().getFullYear()} Stanley · 初山</span>
+    <span class="t-mono" style="text-transform:none; letter-spacing:.04em">
+      Designed in the spirit of glass &amp; gradients
+    </span>
+  </div>
+</footer>
+
+<style>
+  .sh-footer {
+    margin-top: var(--sh-space-10);
+    padding-top: var(--sh-space-9);
+    padding-bottom: var(--sh-space-7);
+  }
+
+  .inner {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: var(--sh-space-8);
+  }
+
+  .mark {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .desc {
+    margin-top: var(--sh-space-3);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--sh-text-description);
+    max-width: 36ch;
+  }
+
+  .col-title {
+    color: var(--sh-text-placeholder);
+    margin-bottom: var(--sh-space-4);
+  }
+
+  .link-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sh-space-3);
+  }
+
+  .foot-link {
+    font-size: 14px;
+    color: var(--sh-text-description);
+    transition: color 0.2s ease;
+    width: fit-content;
+  }
+
+  .foot-link:hover {
+    color: var(--sh-text-primary);
+  }
+
+  .copyright {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--sh-space-8);
+    padding-top: var(--sh-space-5);
+    border-top: 1px solid var(--sh-border-subtle);
+    font-size: 13px;
+    color: var(--sh-text-placeholder);
+  }
+
+  @media (max-width: 767px) {
+    .inner {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .brand-col {
+      grid-column: 1 / -1;
+    }
+
+    .copyright {
+      flex-direction: column;
+      gap: var(--sh-space-2);
+      align-items: flex-start;
+    }
+  }
+</style>

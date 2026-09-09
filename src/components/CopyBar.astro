@@ -1,0 +1,120 @@
+---
+/**
+ * 邮箱/命令复制条 —— 复刻原站安装命令条：
+ * mono 文本 + 右侧复制按钮 + hover 时 conic 旋转描边（.sh-rotating）
+ */
+interface Props {
+  text: string;
+  prefix?: string;
+}
+
+const { text, prefix = '~$' } = Astro.props;
+---
+
+<div class="sh-rotating bar">
+  <div class="sh-rotating-inner row">
+    <span class="prefix">{prefix}</span>
+    <code>{text}</code>
+    <button class="copy-btn" type="button" data-copy={text} aria-label="复制到剪贴板">
+      <svg class="i-copy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+        <rect x="9" y="9" width="12" height="12" rx="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+      <svg class="i-done" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m4 12.5 5 5L20 6.5" />
+      </svg>
+      <span class="copy-label">复制</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = btn.dataset.copy ?? '';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      btn.classList.add('done');
+      const label = btn.querySelector('.copy-label');
+      if (label) label.textContent = '已复制';
+      setTimeout(() => {
+        btn.classList.remove('done');
+        if (label) label.textContent = '复制';
+      }, 1600);
+    });
+  });
+</script>
+
+<style>
+  .bar {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--sh-space-3);
+    padding: 13px 14px 13px 18px;
+    font-family: var(--sh-font-mono);
+    font-size: 14px;
+  }
+
+  .prefix {
+    color: var(--sh-text-placeholder);
+    user-select: none;
+  }
+
+  code {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--sh-text-primary);
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--sh-border-default);
+    background: var(--sh-bg-surface-5);
+    color: var(--sh-text-secondary);
+    font-family: var(--sh-font-sans);
+    font-size: 12px;
+    border-radius: 7px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .copy-btn:hover {
+    background: var(--sh-bg-hover);
+    color: var(--sh-text-primary);
+  }
+
+  .copy-btn .i-done {
+    display: none;
+  }
+
+  .copy-btn.done {
+    color: #34d399;
+    border-color: rgba(52, 211, 153, 0.4);
+  }
+
+  .copy-btn.done .i-copy {
+    display: none;
+  }
+
+  .copy-btn.done .i-done {
+    display: block;
+  }
+</style>

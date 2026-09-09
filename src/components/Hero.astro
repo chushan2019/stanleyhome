@@ -1,0 +1,142 @@
+---
+import { withBase } from '../utils/base';
+import { profile } from '../data/profile';
+import CopyBar from './CopyBar.astro';
+
+const works = withBase('/works');
+const notes = withBase('/notes');
+const about = withBase('/about');
+---
+
+<section class="hero sh-container">
+  <div class="glow" aria-hidden="true"></div>
+
+  <p class="kicker t-mono sh-enter" style="--enter-delay:0s">
+    PERSONAL SITE — 创作 / 阅读 / 记录
+  </p>
+
+  <h1 class="t-hero sh-enter" style="--enter-delay:.08s">
+    <span class="latin">STANLEY</span>
+    <span class="cjk">{profile.nick}</span><span class="dot"></span>
+  </h1>
+
+  <p class="t-subtitle sub sh-enter" style="--enter-delay:.18s">
+    {profile.tagline}<span class="sh-cursor" aria-hidden="true"></span>
+  </p>
+
+  <div class="cta sh-enter" style="--enter-delay:.28s">
+    <a class="sh-btn sh-btn-primary" href={works}>
+      浏览作品集 <span class="arrow">→</span>
+    </a>
+    <a class="sh-btn sh-btn-secondary" href={notes}>读书笔记</a>
+    <a class="sh-btn sh-btn-ghost" href={about}>关于我 · 简历</a>
+  </div>
+
+  <div class="bar-wrap sh-enter" style="--enter-delay:.38s">
+    <CopyBar text={profile.email} prefix="✉" />
+    <span class="bar-hint t-caption">点右侧按钮，复制邮箱，给我写信</span>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding-top: clamp(88px, 14vh, 160px);
+    padding-bottom: clamp(64px, 10vh, 120px);
+    min-height: calc(100svh - 64px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* 品牌蓝光晕（原站 hero 背景有柔光氛围） */
+  .glow {
+    position: absolute;
+    inset: auto auto -20% -10%;
+    width: 640px;
+    height: 640px;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--sh-brand) 16%, transparent) 0%,
+      transparent 62%
+    );
+    filter: blur(30px);
+  }
+
+  :root[data-theme='light'] .glow {
+    background: radial-gradient(
+      circle at center,
+      color-mix(in srgb, var(--sh-brand) 12%, transparent) 0%,
+      transparent 62%
+    );
+  }
+
+  .kicker {
+    color: var(--sh-text-description);
+    margin-bottom: var(--sh-space-5);
+  }
+
+  .latin {
+    display: inline-block;
+  }
+
+  .cjk {
+    font-family: var(--sh-font-sans);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-left: 0.18em;
+    color: var(--sh-brand);
+  }
+
+  .dot {
+    display: inline-block;
+    width: 0.12em;
+    height: 0.12em;
+    border-radius: 50%;
+    background: var(--sh-text-primary);
+    vertical-align: 0.28em;
+    margin-left: 0.16em;
+  }
+
+  .sub {
+    margin-top: var(--sh-space-6);
+    color: var(--sh-text-description);
+    max-width: 40ch;
+  }
+
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sh-space-3);
+    margin-top: var(--sh-space-8);
+  }
+
+  .bar-wrap {
+    margin-top: var(--sh-space-8);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sh-space-3);
+  }
+
+  .bar-hint {
+    color: var(--sh-text-placeholder);
+  }
+
+  @media (max-width: 767px) {
+    .hero {
+      min-height: unset;
+      padding-top: 72px;
+    }
+
+    .cjk {
+      display: inline;
+      margin-left: 0.1em;
+    }
+
+    .dot {
+      display: none;
+    }
+  }
+</style>

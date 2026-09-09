@@ -1,0 +1,76 @@
+---
+import '@fontsource-variable/host-grotesk';
+import '@fontsource-variable/dm-sans';
+import '@fontsource-variable/jetbrains-mono';
+import { withBase } from '../utils/base';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/motion.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Stanley · 初山 —— 把读过的书、做过的东西、听过的声音，放在一起。' } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
+    <link rel="canonical" href={canonical} />
+    <link rel="sitemap" href={withBase('/sitemap-index.xml')} />
+    <script is:inline>
+      document.documentElement.classList.add('js');
+      // 主题初始化：避免闪烁，先于渲染读取用户选择
+      try {
+        const saved = localStorage.getItem('sh-theme');
+        if (saved === 'light' || saved === 'dark') {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <Header />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      // 滚动显现：所有 .sh-reveal 进入视口后加 .is-revealed
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-revealed');
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { rootMargin: '0px 0px -12% 0px', threshold: 0.05 }
+      );
+      document.querySelectorAll('.sh-reveal').forEach((el) => io.observe(el));
+
+      // 主题切换按钮
+      document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const cur = document.documentElement.getAttribute('data-theme');
+          const next = cur === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          try {
+            localStorage.setItem('sh-theme', next);
+          } catch {}
+        });
+      });
+    </script>
+  </body>
+</html>

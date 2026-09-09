@@ -1,0 +1,199 @@
+/* ============================================================
+   动效 — 复刻原站四个关键帧 + 滚动显现
+   1. ds-hero-enter：入场（淡入 + 上浮 + 去模糊），0.8s ease-out，逐个错峰
+   2. rotating-border：conic 旋转描边（@property 驱动）
+   3. arrow-sweep：CTA 箭头划过
+   4. blink：终端光标闪烁
+   5. .sh-reveal：IntersectionObserver 滚动显现（500ms）
+   ============================================================ */
+
+/* conic 描边需要注册自定义属性才能动画化角度 */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes ds-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--enter-y, 20px));
+    filter: blur(var(--enter-blur, 6px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes rotating-border {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+@keyframes arrow-sweep {
+  0% {
+    transform: translateX(-2px);
+    opacity: 0.4;
+  }
+  55% {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* —— hero 入场：给元素挂类名 + style="--enter-delay:.1s" —— */
+.sh-enter {
+  animation: ds-hero-enter 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+  animation-delay: var(--enter-delay, 0s);
+}
+
+/* —— 旋转渐变描边容器（原站安装命令条的样式）——
+   用法：<div class="sh-rotating"><div class="sh-rotating-inner">…</div></div>
+   静止时描边是透明边框；hover / focus-within 时 conic 光带旋转 —— */
+.sh-rotating {
+  position: relative;
+  display: inline-flex;
+  padding: 1px;
+  border-radius: calc(var(--sh-radius-input) + 1px);
+  border: 1px solid var(--sh-border-input);
+  background: transparent;
+  transition: border-color 0.2s ease;
+}
+
+.sh-rotating::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 0%,
+    transparent 55%,
+    var(--sh-brand) 72%,
+    #a5c4ff 82%,
+    transparent 95%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.sh-rotating:hover,
+.sh-rotating:focus-within {
+  border-color: transparent;
+}
+
+.sh-rotating:hover::before,
+.sh-rotating:focus-within::before {
+  opacity: 1;
+  animation: rotating-border 2.4s linear infinite;
+}
+
+.sh-rotating-inner {
+  width: 100%;
+  background: var(--sh-bg-input);
+  border-radius: var(--sh-radius-input);
+  transition: background-color 0.2s ease;
+}
+
+.sh-rotating:hover .sh-rotating-inner,
+.sh-rotating:focus-within .sh-rotating-inner {
+  background: var(--sh-bg-input-hover);
+}
+
+/* —— 滚动显现 ——（仅在 html.js 存在时才默认隐藏，保证无 JS 也可读） */
+.js .sh-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0s);
+}
+
+.js .sh-reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* 终端光标 */
+.sh-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background: var(--sh-brand);
+  animation: blink 1.1s step-end infinite;
+}
+
+/* —— macOS 窗口壳（原站截图容器：红绿灯 + #101113 底）—— */
+.sh-window {
+  border-radius: var(--sh-radius-media);
+  border: 1px solid var(--sh-border-default);
+  overflow: hidden;
+  background: #101113;
+  box-shadow: var(--sh-shadow-card);
+}
+
+.sh-window-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sh-window-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.sh-window-dot:nth-child(1) {
+  background: #ff5f57;
+}
+
+.sh-window-dot:nth-child(2) {
+  background: #febc2e;
+}
+
+.sh-window-dot:nth-child(3) {
+  background: #28c840;
+}
+
+/* —— 无障碍：减少动态偏好时全部关掉 —— */
+@media (prefers-reduced-motion: reduce) {
+  .sh-enter,
+  .sh-rotating::before,
+  .sh-cursor {
+    animation: none !important;
+  }
+
+  .js .sh-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

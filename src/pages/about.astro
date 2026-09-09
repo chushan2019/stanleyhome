@@ -1,0 +1,178 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import CopyBar from '../components/CopyBar.astro';
+import { profile } from '../data/profile';
+---
+
+<BaseLayout title="关于我 · Stanley · 初山">
+  <section class="sh-section">
+    <div class="sh-container narrow">
+      <header class="head">
+        <p class="kicker t-mono sh-enter">ABOUT / RESUME</p>
+        <h1 class="t-hero small sh-enter" style="--enter-delay:.06s">
+          我是 <span class="hl">Stanley</span>，<br />朋友叫我<span class="hl">初山</span>。
+        </h1>
+        <p class="t-subtitle intro sh-enter" style="--enter-delay:.16s">{profile.intro}</p>
+        <div class="cta sh-enter" style="--enter-delay:.26s">
+          <CopyBar text={profile.email} prefix="✉" />
+        </div>
+        <div class="socials sh-enter" style="--enter-delay:.34s">
+          {
+            profile.socials.map((s) => (
+              <a class="sh-link t-caption" href={s.href} target={s.href.startsWith('http') ? '_blank' : undefined} rel="noopener">
+                {s.label}
+              </a>
+            ))
+          }
+        </div>
+      </header>
+    </div>
+  </section>
+
+  <section class="sh-section sh-divider">
+    <div class="sh-container narrow">
+      <div class="sh-reveal">
+        <SectionHeading kicker="TIMELINE" title="经历" />
+      </div>
+      <ol class="timeline">
+        {
+          profile.timeline.map((t, i) => (
+            <li class="tl sh-reveal" style={`--reveal-delay:${i * 0.1}s`}>
+              <div class="period t-mono">{t.period}</div>
+              <div class="tl-body">
+                <h3 class="t-title">{t.title}<span class="org"> · {t.org}</span></h3>
+                <p class="t-body tl-desc">{t.desc}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section class="sh-section sh-divider">
+    <div class="sh-container narrow">
+      <div class="sh-reveal">
+        <SectionHeading kicker="TOOLKIT" title="技能与兴趣" />
+      </div>
+      <div class="skills sh-reveal">
+        {profile.skills.map((s) => <span class="chip">{s}</span>)}
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .narrow {
+    max-width: 820px;
+  }
+
+  .kicker {
+    color: var(--sh-brand);
+    margin-bottom: var(--sh-space-4);
+  }
+
+  .small {
+    font-size: clamp(32px, 5.6vw, 52px);
+    line-height: 1.18;
+  }
+
+  .hl {
+    color: var(--sh-brand);
+  }
+
+  .intro {
+    margin-top: var(--sh-space-6);
+    color: var(--sh-text-description);
+    max-width: 52ch;
+  }
+
+  .cta {
+    margin-top: var(--sh-space-8);
+  }
+
+  .socials {
+    display: flex;
+    gap: var(--sh-space-5);
+    margin-top: var(--sh-space-5);
+    color: var(--sh-text-description);
+  }
+
+  /* —— 时间线：左侧竖线 + 节点 —— */
+  .timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 var(--sh-space-6);
+    border-left: 1px solid var(--sh-border-divider);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sh-space-8);
+  }
+
+  .tl {
+    position: relative;
+    display: grid;
+    grid-template-columns: 128px 1fr;
+    gap: var(--sh-space-5);
+  }
+
+  .tl::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--sh-space-6) - 4.5px);
+    top: 7px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sh-brand);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sh-brand) 22%, transparent);
+  }
+
+  .period {
+    color: var(--sh-text-placeholder);
+    text-transform: none;
+    letter-spacing: 0.02em;
+    padding-top: 4px;
+  }
+
+  .org {
+    color: var(--sh-text-description);
+    font-weight: 400;
+  }
+
+  .tl-desc {
+    margin-top: var(--sh-space-2);
+    color: var(--sh-text-description);
+    font-size: 15px;
+  }
+
+  .skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sh-space-3);
+  }
+
+  .chip {
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: var(--sh-radius-pill);
+    border: 1px solid var(--sh-border-default);
+    background: var(--sh-bg-surface-1);
+    color: var(--sh-text-secondary);
+    transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  }
+
+  .chip:hover {
+    border-color: var(--sh-brand);
+    color: var(--sh-brand);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 639px) {
+    .tl {
+      grid-template-columns: 1fr;
+      gap: var(--sh-space-2);
+    }
+  }
+</style>

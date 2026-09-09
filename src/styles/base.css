@@ -1,0 +1,322 @@
+/* ============================================================
+   基础排版与通用组件样式 — 字号阶/容器/按钮均取自原站实测值
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  background: var(--sh-bg-page);
+  color: var(--sh-text-primary);
+  font-family: var(--sh-font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--sh-brand);
+  color: #fff;
+}
+
+/* —— 字号阶 —— */
+.t-hero {
+  font-family: var(--sh-font-display);
+  font-size: clamp(36px, 8.5vw, 92px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 0;
+}
+
+.t-h1 {
+  font-family: var(--sh-font-display);
+  font-size: clamp(28px, 4.2vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.t-h2 {
+  font-family: var(--sh-font-display);
+  font-size: clamp(22px, 3vw, 26px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.t-subtitle {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.t-title {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.t-body {
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.t-caption {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.t-mono {
+  font-family: var(--sh-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* —— 容器（原站：min(100% - 144px, 1280px)）—— */
+.sh-container {
+  width: min(100% - 48px, 1200px);
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .sh-container {
+    width: min(100% - 96px, 1200px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .sh-container {
+    width: min(100% - 160px, 1280px);
+  }
+}
+
+/* section 节奏：原站用超大留白（space-9 ~ space-11） */
+.sh-section {
+  padding-block: var(--sh-space-10);
+}
+
+@media (max-width: 767px) {
+  .sh-section {
+    padding-block: var(--sh-space-9);
+  }
+}
+
+.sh-divider {
+  border-top: 1px solid var(--sh-border-subtle);
+}
+
+/* —— 玻璃卡片 —— */
+.sh-glass {
+  background: var(--sh-bg-surface-1);
+  border: 1px solid var(--sh-border-default);
+  border-radius: var(--sh-radius-card);
+  box-shadow: var(--sh-shadow-card);
+  backdrop-filter: blur(var(--sh-blur-glass));
+  -webkit-backdrop-filter: blur(var(--sh-blur-glass));
+}
+
+/* —— 按钮（primary / secondary / ghost 三型，pill 圆角）—— */
+.sh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sh-space-2);
+  border-radius: var(--sh-radius-pill);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease, transform 0.2s ease;
+  user-select: none;
+}
+
+.sh-btn-primary {
+  background: var(--sh-btn-primary-bg);
+  color: var(--sh-btn-primary-text);
+}
+
+.sh-btn-primary:hover {
+  transform: translateY(-1px);
+}
+
+.sh-btn-secondary {
+  background: var(--sh-btn-secondary-bg);
+  color: var(--sh-btn-secondary-text);
+  border-color: var(--sh-btn-secondary-border);
+  backdrop-filter: blur(var(--sh-blur-glass));
+  -webkit-backdrop-filter: blur(var(--sh-blur-glass));
+}
+
+.sh-btn-secondary:hover {
+  background: var(--sh-btn-secondary-hover-bg);
+  border-color: var(--sh-btn-secondary-hover-border);
+}
+
+.sh-btn-ghost {
+  background: transparent;
+  color: var(--sh-btn-ghost-text);
+}
+
+.sh-btn-ghost:hover {
+  background: var(--sh-btn-ghost-hover-bg);
+}
+
+/* hover 时箭头划过（arrow-sweep，对应原站 CTA） */
+.sh-btn .arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.sh-btn:hover .arrow {
+  animation: arrow-sweep 0.6s ease;
+}
+
+/* —— 内联链接（原站：虚线下划线）—— */
+.sh-link {
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: var(--sh-border-divider);
+  text-underline-offset: 4px;
+  transition: color 0.2s ease;
+}
+
+.sh-link:hover {
+  color: var(--sh-brand);
+}
+
+/* —— 内容正文排版 —— */
+.sh-prose {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--sh-text-secondary);
+}
+
+.sh-prose > * + * {
+  margin-top: var(--sh-space-5);
+}
+
+.sh-prose h2 {
+  font-family: var(--sh-font-display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--sh-text-primary);
+  margin-top: var(--sh-space-8);
+}
+
+.sh-prose h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--sh-text-primary);
+  margin-top: var(--sh-space-6);
+}
+
+.sh-prose a {
+  color: var(--sh-brand);
+  text-underline-offset: 4px;
+}
+
+.sh-prose blockquote {
+  margin: var(--sh-space-6) 0;
+  padding: var(--sh-space-4) var(--sh-space-5);
+  border-left: 2px solid var(--sh-brand);
+  background: var(--sh-bg-surface-3);
+  border-radius: 0 var(--sh-radius-media) var(--sh-radius-media) 0;
+  color: var(--sh-text-primary);
+}
+
+.sh-prose code {
+  font-family: var(--sh-font-mono);
+  font-size: 13px;
+  background: var(--sh-bg-code);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.sh-prose pre {
+  background: var(--sh-bg-code);
+  border: 1px solid var(--sh-border-default);
+  border-radius: var(--sh-radius-media);
+  padding: var(--sh-space-5);
+  overflow-x: auto;
+}
+
+.sh-prose pre code {
+  background: none;
+  padding: 0;
+}
+
+.sh-prose hr {
+  border: none;
+  border-top: 1px solid var(--sh-border-subtle);
+  margin-block: var(--sh-space-8);
+}
+
+.sh-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.sh-prose th,
+.sh-prose td {
+  border: 1px solid var(--sh-border-default);
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.sh-prose th {
+  background: var(--sh-bg-surface-1);
+  color: var(--sh-text-primary);
+}
+
+.sh-prose ul,
+.sh-prose ol {
+  padding-left: 1.4em;
+}
+
+.sh-prose li + li {
+  margin-top: var(--sh-space-2);
+}
+
+.sh-prose img {
+  border-radius: var(--sh-radius-media);
+  border: 1px solid var(--sh-border-default);
+}

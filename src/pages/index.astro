@@ -1,0 +1,248 @@
+---
+import { withBase } from '../utils/base';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import MediaCard from '../components/MediaCard.astro';
+import { workTypeLabel } from '../utils/labels';
+
+const works = await getCollection('works');
+const featured = works
+  .filter((w) => w.data.featured)
+  .sort((a, b) => b.data.order - a.data.order)
+  .slice(0, 3);
+
+const notes = (await getCollection('notes')).slice(0, 2);
+const posts = (await getCollection('posts'))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3);
+
+const link = (p: string) => withBase(p);
+---
+
+<BaseLayout title="Stanley · 初山 —— 创作 / 阅读 / 记录">
+  <Hero />
+
+  <!-- 精选作品 -->
+  <section class="sh-section sh-divider">
+    <div class="sh-container">
+      <div class="sh-reveal">
+        <SectionHeading
+          kicker="SELECTED WORKS"
+          title="最近在做的东西"
+          desc="图文、声音、视频——媒介不同，表达是同一种。"
+        />
+      </div>
+      <div class="grid">
+        {
+          featured.map((w, i) => (
+            <div class="sh-reveal" style={`--reveal-delay:${i * 0.08}s`}>
+              <MediaCard
+                href={link(`/works/${w.id}`)}
+                title={w.data.title}
+                desc={w.data.summary}
+                cover={w.data.cover ? link(w.data.cover) : undefined}
+                tag={workTypeLabel[w.data.type]}
+                meta={w.data.duration ?? String(w.data.year ?? '')}
+                window={w.data.type === 'text'}
+              />
+            </div>
+          ))
+        }
+      </div>
+      <p class="more">
+        <a class="sh-btn sh-btn-secondary" href={link('/works')}>
+          全部作品 <span class="arrow">→</span>
+        </a>
+      </p>
+    </div>
+  </section>
+
+  <!-- 读书笔记导流 -->
+  <section class="sh-section sh-divider">
+    <div class="sh-container split">
+      <div class="sh-reveal left">
+        <SectionHeading kicker="READING NOTES" title="读书笔记" desc="拆书、摘录、金句，用固定的结构把一本书压进几页纸。" />
+        <p>
+          <a class="sh-btn sh-btn-secondary" href={link('/notes')}>
+            全部书目 <span class="arrow">→</span>
+          </a>
+        </p>
+      </div>
+      <div class="right">
+        {
+          notes.map((n, i) => (
+            <div class="sh-reveal" style={`--reveal-delay:${i * 0.1}s`}>
+              <a class="note-row" href={link(`/notes/${n.id}`)}>
+                <span class="st">{n.data.status === 'done' ? '读完' : '在读'}</span>
+                <span class="bk">{n.data.book}</span>
+                <span class="au">{n.data.author}</span>
+                <span class="arr">→</span>
+              </a>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- 博客导流 -->
+  <section class="sh-section sh-divider">
+    <div class="sh-container">
+      <div class="sh-reveal">
+        <SectionHeading kicker="BLOG" title="长文与思考" />
+      </div>
+      <div class="sh-reveal">
+        {
+          posts.map((p) => (
+            <a class="post-row" href={link(`/blog/${p.id}`)}>
+              <time class="t-mono" datetime={p.data.date.toISOString()}>{p.data.date.getFullYear()}</time>
+              <span class="pt">{p.data.title}</span>
+              <span class="arr">→</span>
+            </a>
+          ))
+        }
+        <p class="more">
+          <a class="sh-link" href={link('/blog')}>浏览全部文章</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sh-space-5);
+  }
+
+  @media (max-width: 1023px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .more {
+    margin-top: var(--sh-space-7);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: var(--sh-space-9);
+    align-items: center;
+  }
+
+  .split p {
+    margin: 0;
+  }
+
+  @media (max-width: 899px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sh-space-3);
+  }
+
+  .note-row {
+    display: grid;
+    grid-template-columns: 48px 1fr auto 24px;
+    align-items: center;
+    gap: var(--sh-space-4);
+    padding: var(--sh-space-4) var(--sh-space-5);
+    border: 1px solid var(--sh-border-default);
+    border-radius: var(--sh-radius-panel);
+    background: var(--sh-bg-surface-3);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.3s ease;
+  }
+
+  .note-row:hover {
+    border-color: var(--sh-border-hover);
+    background: var(--sh-bg-surface-1);
+    transform: translateX(4px);
+  }
+
+  .st {
+    font-family: var(--sh-font-mono);
+    font-size: 11px;
+    color: var(--sh-brand);
+    border: 1px solid color-mix(in srgb, var(--sh-brand) 45%, transparent);
+    border-radius: var(--sh-radius-pill);
+    padding: 3px 10px 2px;
+    width: fit-content;
+  }
+
+  .bk {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .au {
+    font-size: 13px;
+    color: var(--sh-text-description);
+  }
+
+  .arr {
+    color: var(--sh-text-placeholder);
+    transition: transform 0.25s ease, color 0.2s ease;
+  }
+
+  .note-row:hover .arr {
+    color: var(--sh-brand);
+    transform: translateX(3px);
+  }
+
+  .post-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 24px;
+    align-items: center;
+    gap: var(--sh-space-4);
+    padding: var(--sh-space-4) var(--sh-space-2);
+    border-bottom: 1px solid var(--sh-border-subtle);
+    transition: padding-left 0.25s ease;
+  }
+
+  .post-row:hover {
+    padding-left: var(--sh-space-4);
+  }
+
+  .post-row .t-mono {
+    color: var(--sh-text-placeholder);
+  }
+
+  .pt {
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    transition: color 0.2s ease;
+  }
+
+  .post-row:hover .pt {
+    color: var(--sh-brand);
+  }
+
+  .post-row .arr {
+    color: var(--sh-text-placeholder);
+  }
+
+  .post-row:hover .arr {
+    color: var(--sh-brand);
+  }
+
+  .more {
+    margin-top: var(--sh-space-5);
+  }
+</style>

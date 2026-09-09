@@ -1,0 +1,111 @@
+---
+import { withBase } from '../../utils/base';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SectionHeading from '../../components/SectionHeading.astro';
+import { formatDate } from '../../utils/labels';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+const link = (p: string) => withBase(p);
+---
+
+<BaseLayout title="博客 · Stanley · 初山">
+  <section class="sh-section">
+    <div class="sh-container">
+      <SectionHeading kicker="BLOG" title="长文与思考" desc="不追热点，只写想得清楚的东西。" />
+
+      <div class="list">
+        {
+          posts.map((p, i) => (
+            <a class="row sh-reveal" href={link(`/blog/${p.id}`)} style={`--reveal-delay:${i * 0.06}s`}>
+              <div class="meta">
+                <time class="t-mono" datetime={p.data.date.toISOString()}>{formatDate(p.data.date)}</time>
+                <span class="tags">
+                  {p.data.tags.map((t) => `#${t}`).join('  ')}
+                </span>
+              </div>
+              <h2 class="t-h2">{p.data.title}</h2>
+              <p class="t-body desc">{p.data.description}</p>
+              <span class="read t-mono">阅读全文 <i class="arrow">→</i></span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .row {
+    display: block;
+    padding: var(--sh-space-7) var(--sh-space-2);
+    border-top: 1px solid var(--sh-border-subtle);
+    transition: padding-left 0.3s ease;
+  }
+
+  .row:last-child {
+    border-bottom: 1px solid var(--sh-border-subtle);
+  }
+
+  .row:hover {
+    padding-left: var(--sh-space-5);
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--sh-space-4);
+  }
+
+  .meta .t-mono {
+    color: var(--sh-text-placeholder);
+    text-transform: none;
+  }
+
+  .tags {
+    font-family: var(--sh-font-mono);
+    font-size: 12px;
+    color: var(--sh-brand);
+  }
+
+  .row:hover .t-h2 {
+    color: var(--sh-brand);
+    transition: color 0.2s ease;
+  }
+
+  .desc {
+    margin-top: var(--sh-space-3);
+    color: var(--sh-text-description);
+    max-width: 64ch;
+  }
+
+  .read {
+    display: inline-block;
+    margin-top: var(--sh-space-4);
+    color: var(--sh-text-placeholder);
+    text-transform: none;
+    letter-spacing: 0.04em;
+  }
+
+  .read .arrow {
+    display: inline-block;
+    font-style: normal;
+    transition: transform 0.25s ease;
+  }
+
+  .row:hover .read {
+    color: var(--sh-brand);
+  }
+
+  .row:hover .read .arrow {
+    transform: translateX(4px);
+  }
+</style>

@@ -1,0 +1,120 @@
+---
+import { withBase } from '../../utils/base';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SectionHeading from '../../components/SectionHeading.astro';
+import MediaCard from '../../components/MediaCard.astro';
+import { workTypeLabel } from '../../utils/labels';
+
+const works = await getCollection('works');
+const sorted = [...works].sort((a, b) => b.data.order - a.data.order || b.data.year! - a.data.year!);
+const types = ['all', 'text', 'audio', 'video'] as const;
+const link = (p: string) => withBase(p);
+---
+
+<BaseLayout title="作品集 · Stanley · 初山">
+  <section class="sh-section">
+    <div class="sh-container">
+      <SectionHeading
+        kicker="PORTFOLIO"
+        title="作品集"
+        desc="写过的图文、录过的声音、剪过的视频。按媒介筛选，点开即是完整内容。"
+      />
+
+      <div class="filters" role="tablist" aria-label="按类型筛选">
+        {
+          types.map((t) => (
+            <button class="chip" role="tab" data-filter={t} aria-selected={t === 'all'} type="button">
+              {t === 'all' ? '全部' : workTypeLabel[t]}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="grid">
+        {
+          sorted.map((w, i) => (
+            <div class="sh-reveal item" data-type={w.data.type} style={`--reveal-delay:${(i % 3) * 0.08}s`}>
+              <MediaCard
+                href={link(`/works/${w.id}`)}
+                title={w.data.title}
+                desc={w.data.summary}
+                cover={w.data.cover ? link(w.data.cover) : undefined}
+                tag={workTypeLabel[w.data.type]}
+                meta={w.data.duration ?? String(w.data.year ?? '')}
+                window={w.data.type === 'text'}
+              />
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .filters {
+    display: flex;
+    gap: var(--sh-space-2);
+    margin-bottom: var(--sh-space-7);
+  }
+
+  .chip {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--sh-text-description);
+    background: var(--sh-bg-surface-1);
+    border: 1px solid var(--sh-border-default);
+    border-radius: var(--sh-radius-pill);
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .chip:hover {
+    color: var(--sh-text-primary);
+    border-color: var(--sh-border-hover);
+  }
+
+  .chip[aria-selected='true'] {
+    background: var(--sh-btn-primary-bg);
+    color: var(--sh-btn-primary-text);
+    border-color: transparent;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sh-space-5);
+  }
+
+  .item[hidden] {
+    display: none;
+  }
+
+  @media (min-width: 1280px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  const chips = document.querySelectorAll<HTMLButtonElement>('.chip[data-filter]');
+  const items = document.querySelectorAll<HTMLElement>('.item[data-type]');
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chips.forEach((c) => c.setAttribute('aria-selected', String(c === chip)));
+      const f = chip.dataset.filter;
+      items.forEach((it) => {
+        it.hidden = !(f === 'all' || it.dataset.type === f);
+      });
+    });
+  });
+</script>

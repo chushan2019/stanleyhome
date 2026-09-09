@@ -1,0 +1,82 @@
+---
+import { withBase } from '../../utils/base';
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatDate } from '../../utils/labels';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  return posts.map((p) => ({ params: { slug: p.id }, props: { post: p } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const link = (p: string) => withBase(p);
+---
+
+<BaseLayout title={`${post.data.title} · 博客 · Stanley · 初山`} description={post.data.description}>
+  <article class="sh-section">
+    <div class="sh-container narrow">
+      <a class="back sh-link t-caption" href={link('/blog')}>← 返回博客</a>
+
+      <header class="head sh-enter">
+        <div class="meta">
+          <time class="t-mono" datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+          <span class="tags">{post.data.tags.map((t) => `#${t}`).join('  ')}</span>
+        </div>
+        <h1 class="t-h1 title">{post.data.title}</h1>
+        <p class="t-subtitle desc">{post.data.description}</p>
+      </header>
+
+      <div class="sh-prose sh-enter" style="--enter-delay:.12s">
+        <Content />
+      </div>
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .narrow {
+    max-width: 760px;
+  }
+
+  .back {
+    display: inline-block;
+    margin-bottom: var(--sh-space-7);
+    color: var(--sh-text-description);
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--sh-space-5);
+  }
+
+  .meta .t-mono {
+    color: var(--sh-text-placeholder);
+    text-transform: none;
+  }
+
+  .tags {
+    font-family: var(--sh-font-mono);
+    font-size: 12px;
+    color: var(--sh-brand);
+  }
+
+  .title {
+    line-height: 1.3;
+    max-width: 24ch;
+  }
+
+  .desc {
+    margin-top: var(--sh-space-4);
+    color: var(--sh-text-description);
+  }
+
+  .sh-prose {
+    margin-top: var(--sh-space-8);
+    padding-top: var(--sh-space-7);
+    border-top: 1px solid var(--sh-border-subtle);
+  }
+</style>

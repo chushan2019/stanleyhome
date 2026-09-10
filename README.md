@@ -1,34 +1,116 @@
 # Stanley · 初山 —— 个人网站
 
-深色玻璃拟态风格的个人站点（设计语言致敬产品站的 token 体系）：作品集 / 读书笔记 / 博客 / 关于我。
-构建：Astro 5 静态站 → GitHub Pages（`https://chushan2019.github.io/stanleyhome/`）。
+> 线上地址：https://chushan2019.github.io/stanleyhome/
+> 代码仓库：https://github.com/chushan2019/stanleyhome（gh 已建好，直接 clone 即可，无需再建仓库）
 
-## 日常命令
+深色玻璃拟态风格的个人站点，视觉与动效复刻自 https://www.deepseek.com/harness/ 的设计体系（仅复刻设计语言，无原站素材）。内容形态：图文/音频/视频作品集、结构化读书笔记、博客长文、简历页。
 
-```bash
-npm run dev       # 本地预览 http://localhost:4321/stanleyhome/
-npm run build     # 构建到 dist/
-npm run qa        # 无头浏览器全页面截图（输出 /tmp/qa-*.png，需本机 Chrome）
+---
+
+## 一、整体架构
+
+```
+请求路径：浏览器 ──> GitHub Pages（静态 CDN）
+内容路径：本地 Markdown ──git push──> GitHub Actions ──astro build──> dist/ ──> Pages
 ```
 
-## 怎么发内容
+```
+websitestylelesson/
+├── astro.config.mjs            # Astro 5；site + base=/stanleyhome/（Pages 项目子路径）
+├── package.json                # 零 UI 框架、零动效库——全部手写 CSS/WebGL
+├── .github/workflows/deploy.yml# push→build→deploy-pages（Pages 源=workflow）
+│
+├── src/
+│   ├── styles/                 # 设计体系三层
+│   │   ├── tokens.css          #   全部色/间距/圆角/字体变量（dark 默认 + light 覆盖）
+│   │   ├── base.css            #   字号阶(hero46/h1 36/…)、容器 1280px、玻璃卡片/按钮/正文排版
+│   │   └── motion.css          #   入场/旋转描边/滚动显现/光标闪烁 + reduced-motion 降级
+│   │
+│   ├── components/
+│   │   ├── Header.astro        # 玻璃吸顶导航 + 主题切换 + 移动端菜单
+│   │   ├── Hero.astro          # STANLEY·初山 banner，CTA 组，错峰入场
+│   │   ├── RippleBackground.astro # WebGL 层①：鼠标涟漪流场（拖尾FBO+fbm噪声扭曲）
+│   │   ├── DotDrift.astro      # WebGL 层②：漫天雪花⇌世界地图 点阵粒子
+│   │   ├── MediaCard / SectionHeading / CopyBar / GlassButton 等
+│   │   └── Footer.astro
+│   │
+│   ├── content.config.ts       # 内容集合 schema（zod）：works / notes / posts
+│   ├── content/
+│   │   ├── works/**/*.md       # 作品集：type: text|audio|video，external 外链，featured 上首页
+│   │   ├── notes/**/*.md       # 读书笔记：book/author/status/quotes + 正文（兼容 book-reading-notes 产出）
+│   │   └── posts/**/*.md       # 博客：date/tags/draft
+│   │
+│   ├── data/profile.ts         # ★ 简历唯一数据源：姓名/简介/时间线/技能/社交/邮箱
+│   ├── utils/                  # base.ts（withBase 子路径拼接）、labels.ts
+│   ├── layouts/BaseLayout.astro# 字体自托管、主题防闪烁、滚动显现/主题切换脚本
+│   └── pages/                  # index / works(/:slug) / notes(/:slug) / blog(/:slug) / about
+│
+└── public/
+    ├── favicon.svg
+    └── covers/                 # 占位渐变封面（上线后换真实图）
+```
 
-| 想发 | 操作 |
+### 技术选型与理由
+
+| 层 | 选型 | 理由 |
+|---|---|---|
+| 框架 | Astro 5（纯静态 output） | 内容驱动型站点最优解，零 JS 运行时成本，Markdown 一等公民 |
+| 内容 | Content Collections + zod schema | 新增一篇内容 = 新建一个 .md 文件；类型校验防写错 frontmatter |
+| 视觉 | 手写 CSS token 系统 | 不依赖 Tailwind/组件库，token 全部来自原站 CSS 逆向实测值 |
+| 动效 | 手写 WebGL（无 three.js） | 两个特效层共 ~700 行自包含 GLSL+TS，站点无框架绑定 |
+| 字体 | @fontsource 自托管 | 国内不走 Google Fonts CDN，Host Grotesk / DM Sans / JetBrains Mono |
+| 部署 | GitHub Pages + Actions | 免费、git push 即上线、无外部平台依赖 |
+
+### 已实现能力清单
+
+**内容系统**
+- [x] 作品集：图文/音频/视频三类型，列表页筛选、详情页、featured 精选上首页
+- [x] 读书笔记：在读/读完状态、金句卡网格、正文结构（总结/概念摘录/结构图规划）
+- [x] 博客：时间线列表、标签、draft 草稿开关、详情页
+- [x] 简历页（关于我）：经历时间线、技能胶囊、复制邮箱条
+- [x] RSS 就绪的 sitemap（@astrojs/sitemap 自动生成）
+
+**设计体系**
+- [x] 深色（默认）/ 浅色双主题，无闪烁切换，选择记忆在 localStorage
+- [x] 响应式三档（375/768/1440 实测无横向溢出），移动端汉堡菜单
+- [x] hero 错峰入场、旋转渐变描边、滚动显现、macOS 窗口壳、mono 标签排版
+
+**动效层（全部手写 WebGL，机制逆向自原站源码）**
+- [x] ① 鼠标涟漪流场：指针拖尾 FBO + 梯度扭曲 fbm 噪声 + 光晕/颗粒/暗角
+- [x] ② 雪花⇌地图：悬停聚成世界地图、离开散作漫天雪、鼠标斥力空腔、滚动打散
+- [x] `prefers-reduced-motion` / 无 WebGL / 移动端 完整降级
+
+**工程**
+- [x] `npm run qa`：puppeteer + 本机 Chrome 全页面截图回归（含动效交互态）
+- [x] CI/CD：push → build → Pages 全自动；Pages 源已设为 GitHub Actions
+
+---
+
+## 二、日常使用
+
+```bash
+npm install
+npm run dev        # 本地预览 http://localhost:4321/stanleyhome/
+npm run build      # 静态构建到 dist/
+npm run qa         # 截图回归（验证视觉改动）
+git push           # 自动部署
+```
+
+### 内容操作 = 编辑文件（当前唯一管理方式）
+
+| 操作 | 做法 |
 |---|---|
-| 图文/音频/视频作品 | 在 `src/content/works/` 新建 `xxx.md`，frontmatter 见 `src/content.config.ts`（`type: text/audio/video`，音视频填 `external` 外链） |
-| 读书笔记 | `src/content/notes/xxx.md`：frontmatter 放书名/作者/状态/金句，正文放总结与摘录（兼容 book-reading-notes 的产出结构） |
-| 博客长文 | `src/content/posts/xxx.md` |
-| 简历/个人信息 | 改 `src/data/profile.ts` 一个文件 |
-| 封面图 | 放进 `public/covers/`，frontmatter 写 `/covers/xxx.png` |
+| **新增**作品 | 复制 `src/content/works/glass-ui.md` 改 frontmatter + 正文，`git push` |
+| **编辑**作品 | 直接改对应 .md 文件 |
+| **删除**作品 | 删除该 .md 文件 |
+| 音频/视频 | frontmatter 的 `external` 填 B站/小宇宙/YouTube 外链即可 |
+| 改简历 | 只改 `src/data/profile.ts` 一个文件 |
+| 封面图 | 放 `public/covers/`，frontmatter 写 `/covers/xxx.png` |
 
-改完 `git push` 即自动部署（Actions 见 `.github/workflows/deploy.yml`）。
+> ⚠️ **尚无浏览器内后台**：以上操作需要你在本地改文件 + git push。
+> 规划中的「类公众号」在线管理方案见 `docs/admin-plan.md`。
 
-## 设计体系
+## 三、部署与域名备忘
 
-- 全部颜色/间距/圆角变量：`src/styles/tokens.css`（深色为默认，浅色在 `[data-theme="light"]`，右上角可切换，选择记在 localStorage）
-- 字体自托管（@fontsource）：Host Grotesk 标题 / DM Sans 正文 / JetBrains Mono 代码，中文回退 PingFang SC
-- 动效：`src/styles/motion.css` —— hero 错峰入场、conic 旋转描边、滚动显现、macOS 窗口壳；`prefers-reduced-motion` 时全部关闭
-
-## 部署域名备忘
-
-站点位于仓库子路径 `/stanleyhome/`（`astro.config.mjs` 的 `base`）。若换仓库名或绑定自定义域名，改 `base` 与 `site` 后重新构建即可。
+- Pages 子路径 `/stanleyhome/`：站内路径一律经 `src/utils/base.ts` 的 `withBase()` 拼接；
+- 若换仓库名或绑自定义域名：改 `astro.config.mjs` 的 `base`/`site` 后重新 build 即可。

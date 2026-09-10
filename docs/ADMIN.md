@@ -41,6 +41,25 @@ backend:
 
 提交推送：`git add -A && git commit -m "admin: point oauth proxy" && git push`
 
+## 本地先体验（不用等 OAuth，5 分钟见效）
+
+Decap 支持本地后端直写仓库文件，无需 GitHub 授权即可完整体验增删改：
+
+```bash
+npm run dev                 # 终端①  :4321
+npm run cms:local           # 终端②  本地写入代理 :8081
+# 打开 http://localhost:4321/stanleyhome/admin/ → 按钮显示「Login」→ 免登录进入
+```
+
+已配好回归测试一键验证全链路（登录→读列表→新建→发布落盘→删除）：
+
+```bash
+npm run qa:cms              # 需上面两个服务在跑；输出 ALL-PASS 即通过
+```
+
+> 小知识：删除已发布条目时 Decap 弹的是浏览器原生确认框；自动化时要自动接受
+> （qa-cms.mjs 里 `page.on('dialog')` 已处理）。
+
 ## 日常使用
 
 1. 打开后台地址，点「Log in with GitHub」授权

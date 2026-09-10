@@ -8,6 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "qa": "node qa.mjs",
+    "obsidian": "open \"obsidian://open?path=/Users/stanley/vibecoding/websitestylelesson\"",
+    "admin": "open \"https://chushan2019.github.io/stanleyhome/admin/\"",
     "astro": "astro"
   },
   "dependencies": {

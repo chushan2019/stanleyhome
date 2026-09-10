@@ -3,3 +3,9 @@ dist/
 .astro/
 .DS_Store
 *.log
+
+# Obsidian：工作区/缓存不入库（.obsidian/*.json 按需入库）
+.obsidian/workspace*
+.obsidian/cache
+.obsidian/graph.json
+.wrangler/

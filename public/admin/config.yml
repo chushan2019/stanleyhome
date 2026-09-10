@@ -1,0 +1,102 @@
+# Decap CMS 配置 —— 后台入口 /stanleyhome/admin/
+# 数据即本仓库 Markdown，保存=commit 到 main，触发既有 Actions 自动重新部署。
+# 首次使用前：把下面 proxy_url 换成你的 OAuth 中转地址（见 docs/ADMIN.md）
+
+backend:
+  name: github
+  repo: chushan2019/stanleyhome
+  branch: main
+  site_domain: chushan2019.github.io
+  base_url: https://chushan2019.github.io
+  # OAuth 中转（Cloudflare Worker，见 workers/cms-oauth）；未部署前登录会失败
+  proxy_url: https://REPLACE-WITH-YOUR-WORKER.workers.dev
+
+local_backend: true # 本地 npm run dev 时可直接写文件，无需 OAuth
+
+media_folder: public/covers # 上传图片落到仓库的位置
+public_folder: /covers # 站内引用前缀（页面经 withBase 拼子路径）
+
+publish_control:
+  workflows: [Deploy to GitHub Pages]
+
+collections:
+  - name: works
+    label: 作品集
+    label_singular: 作品
+    folder: src/content/works
+    create: true
+    delete: true
+    extension: md
+    format: yaml
+    slug: "{{fields.filename}}"
+    summary: "{{title}} · {{type}}"
+    preview_path: works/{{filename}}
+    identifier_field: title
+    fields:
+      - { name: title, label: 标题, widget: string }
+      - { name: filename, label: 文件名（英文，决定网址）, widget: string, hint: "例 glass-ui → /works/glass-ui" }
+      - {
+          name: type,
+          label: 媒介类型,
+          widget: select,
+          options: [ { label: 图文, value: text }, { label: 音频, value: audio }, { label: 视频, value: video } ],
+        }
+      - { name: year, label: 年份, widget: number, required: false, min: 2000, max: 2100, value_type: int }
+      - { name: summary, label: 一句话简介, widget: text }
+      - { name: cover, label: 封面图, widget: image, required: false, media_library: { config: { max_file_size: 1048576 } } }
+      - { name: duration, label: 时长（音视频用）, widget: string, required: false }
+      - { name: external, label: 外链地址（音频/视频发布平台）, widget: string, required: false }
+      - { name: featured, label: 精选上首页, widget: boolean, default: false }
+      - { name: order, label: 排序权重（越大越前）, widget: number, default: 0, value_type: int }
+      - { name: body, label: 正文, widget: markdown }
+
+  - name: notes
+    label: 读书笔记
+    label_singular: 笔记
+    folder: src/content/notes
+    create: true
+    delete: true
+    extension: md
+    format: yaml
+    slug: "{{fields.filename}}"
+    summary: "《{{book}}》"
+    preview_path: notes/{{filename}}
+    identifier_field: book
+    fields:
+      - { name: book, label: 书名, widget: string }
+      - { name: filename, label: 文件名（英文，决定网址）, widget: string, hint: "例 think-fast-slow" }
+      - { name: author, label: 作者, widget: string }
+      - {
+          name: status,
+          label: 状态,
+          widget: select,
+          options: [ { label: 读完, value: done }, { label: 在读, value: reading } ],
+          default: reading,
+        }
+      - { name: doneDate, label: 读完时间（YYYY-MM）, widget: string, required: false }
+      - { name: cover, label: 书封, widget: image, required: false }
+      - { name: summary, label: 全篇总结（列表页展示）, widget: text }
+      # 不带 field 子键 → 产出字符串数组，与 schema z.array(z.string()) 对齐
+      - { name: quotes, label: 金句摘录（每条一行）, widget: list, required: false }
+      - { name: body, label: 笔记正文（总结/概念/结构图规划）, widget: markdown }
+
+  - name: posts
+    label: 博客
+    label_singular: 文章
+    folder: src/content/posts
+    create: true
+    delete: true
+    extension: md
+    format: yaml
+    slug: "{{fields.filename}}"
+    summary: "{{title}} ({{date}})"
+    preview_path: blog/{{filename}}
+    identifier_field: title
+    fields:
+      - { name: title, label: 标题, widget: string }
+      - { name: filename, label: 文件名（英文，决定网址）, widget: string }
+      - { name: date, label: 发布日期, widget: datetime, date_format: "YYYY-MM-DD", time_format: false }
+      - { name: description, label: 摘要, widget: text }
+      - { name: tags, label: 标签, widget: list, required: false }
+      - { name: draft, label: 草稿（不发布）, widget: boolean, default: false }
+      - { name: body, label: 正文, widget: markdown }

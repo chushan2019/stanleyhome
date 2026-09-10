@@ -96,7 +96,17 @@ npm run qa         # 截图回归（验证视觉改动）
 git push           # 自动部署
 ```
 
-### 内容操作 = 编辑文件（当前唯一管理方式）
+### 内容管理 = 三套入口，同一批文件
+
+| 入口 | 适合场景 | 开通 |
+|---|---|---|
+| 🌐 网页后台（Decap CMS）`/stanleyhome/admin/` | 手机/任何电脑，表单式增删改，类公众号体验 | 见 `docs/ADMIN.md`（需一次性配 GitHub OAuth + Cloudflare Worker） |
+| 📓 Obsidian 本地后台 | 沉浸式写作，模板 + Git 插件自动发布 | 见 `docs/OBSIDIAN.md`（5 分钟配置） |
+| ✍️ 直接编辑 Markdown + git push | 改 `src/data/profile.ts` 等单文件小改动 | 已可用，零配置 |
+
+三者写的都是 `src/content/**` 与 `src/data/`，互不冲突（后提交的生效）。
+
+### 手动方式速查（等价于内容操作 = 编辑文件）
 
 | 操作 | 做法 |
 |---|---|

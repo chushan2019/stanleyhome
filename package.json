@@ -10,6 +10,7 @@
     "qa": "node qa.mjs",
     "obsidian": "open \"obsidian://open?path=/Users/stanley/vibecoding/websitestylelesson\"",
     "admin": "open \"https://chushan2019.github.io/stanleyhome/admin/\"",
+    "pub": "bash scripts/publish.sh",
     "astro": "astro"
   },
   "dependencies": {

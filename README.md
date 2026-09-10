@@ -101,7 +101,7 @@ git push           # 自动部署
 | 入口 | 适合场景 | 开通 |
 |---|---|---|
 | 🌐 网页后台（Decap CMS）`/stanleyhome/admin/` | 手机/任何电脑，表单式增删改，类公众号体验 | 见 `docs/ADMIN.md`（需一次性配 GitHub OAuth + Cloudflare Worker） |
-| 📓 Obsidian 本地后台 | 沉浸式写作，模板 + Git 插件自动发布 | 见 `docs/OBSIDIAN.md`（5 分钟配置） |
+| 📓 Obsidian 本地后台 | 沉浸式写作；官方 CLI（≥1.12.7）可命令行增删改查+套模板+发布 | 见 `docs/OBSIDIAN.md`（5 分钟配置） |
 | ✍️ 直接编辑 Markdown + git push | 改 `src/data/profile.ts` 等单文件小改动 | 已可用，零配置 |
 
 三者写的都是 `src/content/**` 与 `src/data/`，互不冲突（后提交的生效）。
@@ -116,6 +116,7 @@ git push           # 自动部署
 | 音频/视频 | frontmatter 的 `external` 填 B站/小宇宙/YouTube 外链即可 |
 | 改简历 | 只改 `src/data/profile.ts` 一个文件 |
 | 封面图 | 放 `public/covers/`，frontmatter 写 `/covers/xxx.png` |
+| 一键发布 | 改完后 `npm run pub "说明"`（自动 commit 内容目录 + push 上线） |
 
 > ⚠️ **尚无浏览器内后台**：以上操作需要你在本地改文件 + git push。
 > 规划中的「类公众号」在线管理方案见 `docs/admin-plan.md`。

@@ -6,9 +6,9 @@ backend:
   name: github
   repo: chushan2019/stanleyhome
   branch: main
-  site_domain: chushan2019.github.io
-  base_url: https://chushan2019.github.io
-  # OAuth 中转（Cloudflare Worker，见 workers/cms-oauth）；未部署前登录会失败
+  # OAuth 中转（Cloudflare Worker，见 workers/cms-oauth 与 docs/ADMIN.md）。
+  # ⚠️ 切勿加 site_domain/base_url——那会让 Decap 改走 Netlify 的 /auth 端点导致 404。
+  # 部署 Worker 后替换下面这行，否则线上登录按钮会失败（本地 local_backend 不受影响）。
   proxy_url: https://REPLACE-WITH-YOUR-WORKER.workers.dev
 
 local_backend: true # 本地 npm run dev 时可直接写文件，无需 OAuth
@@ -27,10 +27,9 @@ collections:
     create: true
     delete: true
     extension: md
-    format: yaml
+    format: yaml-frontmatter
     slug: "{{fields.filename}}"
-    summary: "{{title}} · {{type}}"
-    preview_path: works/{{filename}}
+    preview_path: works/{{slug}}
     identifier_field: title
     fields:
       - { name: title, label: 标题, widget: string }
@@ -57,10 +56,9 @@ collections:
     create: true
     delete: true
     extension: md
-    format: yaml
+    format: yaml-frontmatter
     slug: "{{fields.filename}}"
-    summary: "《{{book}}》"
-    preview_path: notes/{{filename}}
+    preview_path: notes/{{slug}}
     identifier_field: book
     fields:
       - { name: book, label: 书名, widget: string }
@@ -87,10 +85,9 @@ collections:
     create: true
     delete: true
     extension: md
-    format: yaml
+    format: yaml-frontmatter
     slug: "{{fields.filename}}"
-    summary: "{{title}} ({{date}})"
-    preview_path: blog/{{filename}}
+    preview_path: blog/{{slug}}
     identifier_field: title
     fields:
       - { name: title, label: 标题, widget: string }

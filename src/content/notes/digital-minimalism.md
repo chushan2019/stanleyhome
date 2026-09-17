@@ -1,5 +1,6 @@
 ---
-book: 数字极简主义
+book: 数字极简主义-后台测试
+filename: sample
 author: 卡尔·纽波特
 status: reading
 summary: 「数字极简」不是戒网，而是一个决策框架：只让那些「强烈支持你核心价值」的工具进入生活。在读，先记下前三分之一的骨架。

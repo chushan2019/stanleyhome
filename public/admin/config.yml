@@ -10,7 +10,7 @@ backend:
   # Decap 3.x 的 GitHub 后端只认 base_url（指向你的 OAuth 中转 Worker）；
   # proxy_url 是无效键、会被静默忽略。切勿加 site_domain，否则改走 Netlify 的 /auth 导致 404。
   # 部署 Worker 后替换下面这行，否则线上登录按钮会失败（本地 local_backend 不受影响）。
-  base_url: https://REPLACE-WITH-YOUR-WORKER.workers.dev
+  base_url: https://cms-oauth.zizaizhulei.workers.dev
 
 local_backend: true # 本地 npm run dev 时可直接写文件，无需 OAuth
 

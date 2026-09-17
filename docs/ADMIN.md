@@ -13,7 +13,7 @@
 2. 填写：
    - Application name：`stanleyhome-admin`
    - Homepage URL：`https://chushan2019.github.io/stanleyhome/`
-   - Authorization callback URL：先随便填 `https://placeholder.workers.dev/auth`，第 2 步拿到真实域名后回来改
+   - Authorization callback URL：先随便填 `https://placeholder.workers.dev/callback`，第 2 步拿到真实域名后回来改
 3. Create → 记下 **Client ID** → Generate a client secret → 记下 **Client Secret**（只显示一次）
 
 ## 第 2 步：部署 OAuth 中转 Worker（你操作，3 分钟）
@@ -28,7 +28,7 @@ npx wrangler deploy                            # 首次会弹出浏览器登录 
 ```
 
 部署成功会输出 `https://cms-oauth.<你的用户名>.workers.dev`。
-**回到第 1 步把 OAuth App 的 callback URL 改成** `https://cms-oauth.<你的用户名>.workers.dev/auth`。
+**回到第 1 步把 OAuth App 的 callback URL 改成** `https://cms-oauth.<你的用户名>.workers.dev/callback`。
 
 ## 第 3 步：把 Worker 地址填进配置（我也可以代改，1 分钟）
 
@@ -36,7 +36,7 @@ npx wrangler deploy                            # 首次会弹出浏览器登录 
 
 ```yaml
 backend:
-  proxy_url: https://cms-oauth.<你的用户名>.workers.dev   # ← 替换这行
+  base_url: https://cms-oauth.<你的用户名>.workers.dev   # ← 替换这行
 ```
 
 提交推送：`git add -A && git commit -m "admin: point oauth proxy" && git push`
@@ -59,6 +59,27 @@ npm run qa:cms              # 需上面两个服务在跑；输出 ALL-PASS 即�
 
 > 小知识：删除已发布条目时 Decap 弹的是浏览器原生确认框；自动化时要自动接受
 > （qa-cms.mjs 里 `page.on('dialog')` 已处理）。
+
+## OAuth 登录排障（重要）
+
+Decap 的 github 后端**只读 `backend.base_url`** 来决定 OAuth 中转地址。这个键写错或缺失时，
+它会静默回退到 `https://api.netlify.com/auth`，点登录的弹窗里显示一个 **404 Not Found**，
+界面上没有任何报错——历史上这个坑排查了两轮。
+
+两处日志可以快速定位：
+
+1. **浏览器控制台**（打开 `admin/` 页即自动打印）：
+   - `[admin] 点击「Login with GitHub」实际会打开的地址：…` —— 这就是登录时真正会打开的 URL。
+     若它指向 `api.netlify.com`，说明 `base_url` 没生效（缺失/拼错/未部署）。
+   - 若配置里有 `proxy_url` 或 `site_domain`，会额外打印告警。
+2. **Worker 端**：`cd workers/cms-oauth && npx wrangler tail`，可看到 `[cms-oauth]` 各阶段日志
+   （不打印 token 与 secret 本身，只打印长度，可安全贴出）。
+
+回归测试（不需要真实 GitHub 账号，用本地假 OAuth 主机 + 请求拦截伪造 api.github.com）：
+
+```bash
+npm run qa:oauth            # Worker 单元 + 真机端到端握手；输出 ALL-PASS 即通过
+```
 
 ## 日常使用
 

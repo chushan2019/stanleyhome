@@ -8,4 +8,4 @@ compatibility_date = "2026-01-01"
 #   npx wrangler secret put GITHUB_CLIENT_SECRET  # 粘贴 Client Secret
 #   npx wrangler deploy
 # 部署后把 https://cms-oauth.<你的子域>.workers.dev 填进
-# public/admin/config.yml 的 proxy_url，然后 push。
+# public/admin/config.yml 的 base_url，然后 push。

@@ -9,6 +9,7 @@
     "preview": "astro preview",
     "qa": "node qa.mjs",
     "qa:cms": "node qa-cms.mjs",
+    "qa:oauth": "node qa-oauth.mjs",
     "cms:local": "npx -y decap-server@3.6.0",
     "obsidian": "open \"obsidian://open?path=/Users/stanley/vibecoding/websitestylelesson\"",
     "admin": "open \"https://chushan2019.github.io/stanleyhome/admin/\"",

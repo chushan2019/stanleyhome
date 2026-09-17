@@ -6,6 +6,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
     <title>内容后台 · Stanley · 初山</title>
+    <script>
+      /**
+       * 启动期配置诊断日志。
+       * 背景：Decap 的 GitHub 后端只读 backend.base_url 来决定 OAuth 中转地址；
+       * 该键一旦缺失/写错，它会静默回退到 https://api.netlify.com/auth 并返回 404，
+       * 界面上没有任何报错。这里把关键配置与「实际会打开的登录 URL」打到控制台，
+       * 让这类静默失败一眼可见。日志不影响 CMS 运行，可随时删除本段。
+       */
+      (function () {
+        const NETLIFY_FALLBACK = 'https://api.netlify.com';
+        fetch('config.yml', { credentials: 'same-origin', cache: 'no-store' })
+          .then((r) => (r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status))))
+          .then((text) => {
+            const pick = (key) => {
+              const m = text.match(new RegExp('^\\s*' + key + '\\s*:\\s*(.+?)\\s*$', 'm'));
+              return m ? m[1].replace(/^["']|["']$/g, '') : null;
+            };
+            const name = pick('name');
+            const baseUrl = pick('base_url');
+            const proxyUrl = pick('proxy_url');
+            const localBackend = pick('local_backend');
+            const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+
+            const cfg = { 'backend.name': name, 'backend.base_url': baseUrl, 'backend.proxy_url': proxyUrl, local_backend: localBackend };
+            console.group('[admin] Decap 后端配置诊断');
+            console.log('解析到的配置：', cfg);
+
+            if (proxyUrl) console.warn('[admin] 检测到 proxy_url —— 这不是 github 后端的有效键，会被 Decap 静默忽略。OAuth 中转请改用 backend.base_url。');
+            if (!baseUrl) {
+              console.error(
+                `[admin] 缺少 backend.base_url，Decap 将回退到 ${NETLIFY_FALLBACK}/auth，点登录会直接 404。` +
+                  (isLocalHost ? '（本地 local_backend 生效，可免登录）' : '（线上必修）')
+              );
+            } else if (baseUrl.includes('REPLACE-WITH')) {
+              console.warn('[admin] base_url 仍是占位符，尚未指向真实 OAuth Worker，线上登录会失败。见 docs/ADMIN.md。');
+            }
+
+            const effective = (baseUrl || NETLIFY_FALLBACK).replace(/\/+$/, '');
+            console.log('[admin] 点击「Login with GitHub」实际会打开的地址：');
+            console.log(`${effective}/auth?provider=github&site_id=${location.hostname}&scope=repo`);
+            if (localBackend === 'true' && !isLocalHost) {
+              console.warn('[admin] local_backend: true 在非 localhost 域名下不生效，线上仍走 GitHub OAuth。');
+            }
+            console.groupEnd();
+          })
+          .catch((e) => console.warn('[admin] 配置诊断未能读取 config.yml：', e.message));
+      })();
+    </script>
   </head>
   <body>
     <!-- Decap CMS（静态站内容管理系统），config.yml 同目录 -->

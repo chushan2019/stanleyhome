@@ -39,7 +39,7 @@ collections:
       - { name: title, label: 标题, widget: string }
       # 新建时手填；编辑已有条目时 Decap 用 {{filename}} 自动回填当前文件名。
       # 该字段只在新建时决定落盘路径，编辑时改动不会重命名文件（schema 也不存它），故禁止乱改。
-      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["/^[a-z0-9][a-z0-9-]*$/","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准" }
+      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["^[a-z0-9][a-z0-9-]*$","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准" }
       - {
           name: type,
           label: 媒介类型,
@@ -69,7 +69,7 @@ collections:
     fields:
       - { name: book, label: 书名, widget: string }
       # 同 works.filename：仅新建生效，编辑时自动回填且不要改动
-      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["/^[a-z0-9][a-z0-9-]*$/","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准。例 think-fast-slow" }
+      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["^[a-z0-9][a-z0-9-]*$","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准。例 think-fast-slow" }
       - { name: author, label: 作者, widget: string }
       - {
           name: status,
@@ -99,7 +99,7 @@ collections:
     fields:
       - { name: title, label: 标题, widget: string }
       # 同 works.filename：仅新建生效，编辑时自动回填且不要改动
-      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["/^[a-z0-9][a-z0-9-]*$/","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准" }
+      - { name: filename, label: 文件名（英文，新建时决定网址）, widget: string, default: "{{filename}}", pattern: ["^[a-z0-9][a-z0-9-]*$","只用小写英文字母、数字和连字符"], hint: "编辑已有条目请勿改动；网址以仓库文件名为准" }
       - { name: date, label: 发布日期, widget: datetime, date_format: "YYYY-MM-DD", time_format: false }
       - { name: description, label: 摘要, widget: text }
       - { name: tags, label: 标签, widget: list, required: false }

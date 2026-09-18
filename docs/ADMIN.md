@@ -81,6 +81,16 @@ Decap 的 github 后端**只读 `backend.base_url`** 来决定 OAuth 中转地�
 npm run qa:oauth            # Worker 单元 + 真机端到端握手；输出 ALL-PASS 即通过
 ```
 
+### 保存/发布时报「API_ERROR: Bad credentials」
+
+含义：本浏览器存的 GitHub OAuth token 已失效（GitHub 对「同一账号 × 同一 OAuth App」
+只保留一个有效 token——**在另一台设备/浏览器重新登录会踢掉旧 token**；手动 Revoke
+授权同理）。列表页看起来正常是因为渲染的是本地缓存，写入时才暴露。
+
+解决：右上角头像 → Log out → 重新 Log in with GitHub 即可。未 Publish 的草稿存在
+浏览器本地（条目标记为 Unpublished），重新登录后回到对应集合能找到并继续发布，不会丢。
+建议固定一个主要设备登录后台；手机发布后回电脑用，电脑需重新登录一次。
+
 ## 日常使用
 
 1. 打开后台地址，点「Log in with GitHub」授权

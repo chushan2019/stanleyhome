@@ -1,4 +1,5 @@
 ---
+filename: ai-era-personal-site
 title: AI 时代，个人网站反而更值得做了
 date: 2026-08-18
 description: 平台越来越强，为什么还要自己搭一个小站？三个理由：所有权、可组合性、以及给 AI 一个懂你的入口。

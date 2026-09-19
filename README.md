@@ -80,6 +80,13 @@ websitestylelesson/
 - [x] ② 雪花⇌地图：悬停聚成世界地图、离开散作漫天雪、鼠标斥力空腔、滚动打散
 - [x] `prefers-reduced-motion` / 无 WebGL / 移动端 完整降级
 
+**后台管理（类公众号体验）**
+- [x] Decap CMS 网页后台 `/stanleyhome/admin/`：作品/笔记/博客的 新建·编辑·删除·发布·草稿
+- [x] GitHub OAuth 登录（Cloudflare Worker 中转 `workers/cms-oauth`，无自建账号体系）
+- [x] editorial workflow：Save 草稿（浏览器本地持久化，退出重登不丢）+ Workflow 看板 + Publish 自动合并
+- [x] 图片上传入 `public/covers/`；frontmatter 表单化（文件名正则校验防写坏）
+- [x] `npm run qa:cms`（写入链路 E2E）/ `npm run qa:oauth`（登录握手 E2E）/ `npm run qa:draft`（草稿存活 E2E）
+
 **工程**
 - [x] `npm run qa`：puppeteer + 本机 Chrome 全页面截图回归（含动效交互态）
 - [x] CI/CD：push → build → Pages 全自动；Pages 源已设为 GitHub Actions
@@ -100,7 +107,7 @@ git push           # 自动部署
 
 | 入口 | 适合场景 | 开通 |
 |---|---|---|
-| 🌐 网页后台（Decap CMS）`/stanleyhome/admin/` | 手机/任何电脑，表单式增删改，类公众号体验 | 见 `docs/ADMIN.md`（需一次性配 GitHub OAuth + Cloudflare Worker） |
+| 🌐 网页后台（Decap CMS）`/stanleyhome/admin/` | 手机/任何电脑，表单式增删改，类公众号体验；**GitHub OAuth 登录 + 草稿工作流已启用** | 已完成（GitHub OAuth App + Cloudflare Worker 中转，见 `docs/ADMIN.md`） |
 | 📓 Obsidian 本地后台 | 沉浸式写作；官方 CLI（≥1.12.7）可命令行增删改查+套模板+发布 | 见 `docs/OBSIDIAN.md`（5 分钟配置） |
 | ✍️ 直接编辑 Markdown + git push | 改 `src/data/profile.ts` 等单文件小改动 | 已可用，零配置 |
 
@@ -118,8 +125,8 @@ git push           # 自动部署
 | 封面图 | 放 `public/covers/`，frontmatter 写 `/covers/xxx.png` |
 | 一键发布 | 改完后 `npm run pub "说明"`（自动 commit 内容目录 + push 上线） |
 
-> ⚠️ **尚无浏览器内后台**：以上操作需要你在本地改文件 + git push。
-> 规划中的「类公众号」在线管理方案见 `docs/admin-plan.md`。
+> ✅ **浏览器内后台已上线**：打开 `https://chushan2019.github.io/stanleyhome/admin/`，
+> GitHub 授权后即可新建/编辑/删除/发布（含草稿 Save、图片上传）。方案调研记录见 `docs/admin-plan.md`。
 
 ## 三、部署与域名备忘
 

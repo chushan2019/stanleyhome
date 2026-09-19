@@ -1,4 +1,5 @@
 ---
+filename: reading-system
 title: 我的读书笔记工作流：从划线到结构图
 type: text
 year: 2025

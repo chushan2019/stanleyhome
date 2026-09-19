@@ -1,4 +1,5 @@
 ---
+filename: think-fast-slow
 book: 思考，快与慢
 author: 丹尼尔·卡尼曼
 status: done

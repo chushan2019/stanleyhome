@@ -1,4 +1,5 @@
 ---
+filename: reading-in-public
 title: 公开阅读：为什么我把读书笔记发在网上
 date: 2026-06-30
 description: 私藏笔记和公开笔记是两种不同的活动。前者对抗遗忘，后者对抗自欺。

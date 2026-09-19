@@ -1,18 +1,15 @@
+# 自动生成勿手改：qa-draft 工作流回归夹具（backend=test-repo，浏览器内模拟仓库）
 # Decap CMS 配置 —— 后台入口 /stanleyhome/admin/
 # 数据即本仓库 Markdown，保存=commit 到 main，触发既有 Actions 自动重新部署。
 # 首次使用前：把下面 base_url 换成你的 OAuth 中转地址（见 docs/ADMIN.md）
 
 backend:
-  name: github
-  repo: chushan2019/stanleyhome
-  branch: main
+  name: test-repo
   # OAuth 中转（Cloudflare Worker，见 workers/cms-oauth 与 docs/ADMIN.md）。
   # Decap 3.x 的 GitHub 后端只认 base_url（指向你的 OAuth 中转 Worker）；
   # proxy_url 是无效键、会被静默忽略。切勿加 site_domain，否则改走 Netlify 的 /auth 导致 404。
   # 部署 Worker 后替换下面这行，否则线上登录按钮会失败（本地 local_backend 不受影响）。
-  base_url: https://cms-oauth.zizaizhulei.workers.dev
 
-local_backend: true # 本地 npm run dev 时可直接写文件，无需 OAuth
 
 media_folder: public/covers # 上传图片落到仓库的位置
 public_folder: /covers # 站内引用前缀（页面经 withBase 拼子路径）

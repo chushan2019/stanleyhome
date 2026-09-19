@@ -1,4 +1,5 @@
 ---
+filename: digital-minimalism
 book: 数字极简主义
 author: 卡尔·纽波特
 status: reading

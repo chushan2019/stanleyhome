@@ -71,7 +71,7 @@
        * 使 Decap 的抓图管线完全不参与。文件粘贴（截图）与普通粘贴不受影响。
        */
       (function () {
-        const SKIP = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, IFRAME: 1, VIDEO: 1, AUDIO: 1, CANVAS: 1, SVG: 1, FORM: 1, BUTTON: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1 };
+        const SKIP = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, IFRAME: 1, VIDEO: 1, AUDIO: 1, CANVAS: 1, SVG: 1, FORM: 1, BUTTON: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1, NAV: 1, ASIDE: 1, FOOTER: 1, HEADER: 1 };
         function esc(t) {
           return t.replace(/[	 ​]/g, ' ').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
         }
@@ -107,9 +107,10 @@
             case 'IMG': {
               const src = (n.getAttribute('src') || n.getAttribute('data-src') || '').trim();
               const alt = (n.getAttribute('alt') || '').trim();
-              // 只保留真实 http(s) 外链图；占位图/懒加载空 src 一律跳过——绝不产出畸形 ![]() 节点
-              if (!/^https?:\/\//i.test(src)) return alt ? '（图：' + alt + '）' : '';
-              return '![' + alt.replace(/[\[\]]/g, '') + '](' + src + ')';
+              // 关键：粘贴路径下的 ![]() 图片语法会触发 Decap 抓图/渲染管线崩溃（本地复现实锤），
+              // 故图片一律转为文字占位，URL 保留在括号内；需要真图时用工具栏/上传手动补。
+              if (/^https?:\/\//i.test(src)) return '（图：' + (alt || '图片') + ' ' + src + '）';
+              return alt ? '（图：' + alt + '）' : '';
             }
             case 'BLOCKQUOTE':
               return inline(n).split('\n').map((l) => '> ' + l).join('\n') + '\n\n';
@@ -139,6 +140,21 @@
           walk(doc.body, out);
           return out.join('').replace(/ /g, ' ').replace(/\n{3,}/g, '\n\n').trim();
         }
+        const toast = (msg) => {
+          let el = document.getElementById('stanley-paste-toast');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = 'stanley-paste-toast';
+            el.style.cssText =
+              'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:99999;background:#1d2229;color:#eef2f7;padding:12px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.18);box-shadow:0 8px 30px rgba(0,0,0,.4);font:13px/1.6 system-ui;max-width:80vw;transition:opacity .4s';
+            document.body.appendChild(el);
+          }
+          el.textContent = msg;
+          el.style.opacity = '1';
+          clearTimeout(el.__t);
+          el.__t = setTimeout(() => (el.style.opacity = '0'), 7000);
+        };
+        const sanitize = (x) => x.replace(/!\[([^\]]*)\]\(([^)]*)\)/g, '（图：$1 $2）').replace(/!\[([^\]]*)\]\[[^\]]*\]/g, '（图：$1）');
         document.addEventListener(
           'paste',
           (e) => {
@@ -148,19 +164,35 @@
             if (!cd) return;
             if (cd.files && cd.files.length) return; // 截图/文件粘贴 → 放行给 Decap 原上传管线
             const html = cd.getData('text/html');
-            if (!html) return; // 纯文本粘贴（含手抄 Markdown）→ 放行，已验证无崩溃
+            const text = cd.getData('text/plain') || '';
+            if (!html && !/!\[/.test(text)) return; // 纯文本且不含图片语法 → 原样放行（已验证安全）
+            // Chrome 对 paste 事件 clipboardData 的写入是静默无效的（回读仍是原 HTML）。
+            // 因此：拦下本次粘贴（阻止 Decap 抓图/渲染管线），把「HTML→Markdown、图片转
+            // 文字占位」的净化文本写回【系统剪贴板】，提示再按一次 ⌘V ——
+            // 第二次即原生纯文本粘贴：状态可靠提交，且不再触发崩溃路径。
             e.preventDefault();
-            e.stopImmediatePropagation(); // 冒泡/捕获全截断，Decap 粘贴管线不再看到该事件
-            const md = htmlToMd(html) || cd.getData('text/plain') || '';
-            try {
-              document.execCommand('insertText', false, md);
-            } catch (err) {
-              console.warn('[admin] 富文本粘贴转换插入失败，可改用「无格式粘贴」：', err);
+            e.stopImmediatePropagation();
+            const md = sanitize(html ? htmlToMd(html) || text : text);
+            const fallbackCopy = () => {
+              const ta = document.createElement('textarea');
+              ta.value = md;
+              ta.style.cssText = 'position:fixed;left:-9999px';
+              document.body.appendChild(ta);
+              ta.select();
+              try { document.execCommand('copy'); } catch (err) {}
+              ta.remove();
+            };
+            const notice = '已拦截网页格式并转存为纯文本：请按 ⌘V 再粘贴一次（图片已转为文字占位，可用工具栏重新插图）';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(md).then(() => toast(notice)).catch(() => { fallbackCopy(); toast(notice); });
+            } else {
+              fallbackCopy();
+              toast(notice);
             }
           },
           true
         );
-        console.log('[admin] 富文本粘贴防护已启用（HTML→Markdown 转换 + 阻断自动抓图）');
+        console.log('[admin] 粘贴防护已启用（拦截网页格式→剪贴板转纯文本→二次粘贴）');
       })();
     </script>
   </body>

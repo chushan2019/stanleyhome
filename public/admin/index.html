@@ -58,5 +58,110 @@
   <body>
     <!-- Decap CMS（静态站内容管理系统），config.yml 同目录 -->
     <script src="https://unpkg.com/decap-cms@3.8.0/dist/decap-cms.js"></script>
+    <script>
+      /**
+       * 富文本粘贴防护（2026-09 事故修复）。
+       * 现象：从网页复制文章正文粘贴进「正文」编辑器，整页崩溃：
+       *   TypeError: Cannot destructure property 'url' of 'e.element.data' as it is undefined
+       * 根因：Decap 富文本粘贴会抓取 HTML 里的远程 <img> 自动下载转存；遇到无 src 的
+       * 懒加载占位图/内联 svg 等畸形节点时，预览渲染器对无 data 的 image 节点解构崩溃。
+       * 上游至 decap-cms 3.16.2 仍未修复（已核对产物源码），升级无效。
+       * 对策：捕获阶段拦截「HTML 富文本 → 正文编辑器」的粘贴，自行转成结构良好的
+       * Markdown 文本后以纯文本插入（纯文本路径已回归验证不会崩溃），并阻断事件传播，
+       * 使 Decap 的抓图管线完全不参与。文件粘贴（截图）与普通粘贴不受影响。
+       */
+      (function () {
+        const SKIP = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, IFRAME: 1, VIDEO: 1, AUDIO: 1, CANVAS: 1, SVG: 1, FORM: 1, BUTTON: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1 };
+        function esc(t) {
+          return t.replace(/[	 ​]/g, ' ').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]);
+        }
+        function walk(node, out) {
+          for (const ch of node.childNodes) out.push(render(ch));
+        }
+        function inline(n) {
+          const out = [];
+          walk(n, out);
+          return out.join('').replace(/\s*\n\s*/g, ' ').trim();
+        }
+        function render(n) {
+          if (n.nodeType === 3) return esc(n.textContent);
+          if (n.nodeType !== 1) return '';
+          const tag = n.tagName.toUpperCase();
+          if (SKIP[tag]) return '';
+          switch (tag) {
+            case 'H1': case 'H2': case 'H3': case 'H4': case 'H5': case 'H6':
+              return '#'.repeat(+tag[1]) + ' ' + inline(n) + '\n\n';
+            case 'P': return inline(n) + '\n\n';
+            case 'BR': return '\n';
+            case 'STRONG': case 'B': { const t = inline(n); return t ? '**' + t + '**' : ''; }
+            case 'EM': case 'I': { const t = inline(n); return t ? '*' + t + '*' : ''; }
+            case 'DEL': { const t = inline(n); return t ? '~~' + t + '~~' : ''; }
+            case 'CODE': return '`' + inline(n) + '`';
+            case 'PRE': return '```\n' + n.textContent.replace(/\s+$/, '') + '\n```\n\n';
+            case 'A': {
+              const href = (n.getAttribute('href') || '').trim();
+              const t = inline(n);
+              if (!href || href.startsWith('javascript:')) return t;
+              return '[' + (t || href) + '](' + href + ')';
+            }
+            case 'IMG': {
+              const src = (n.getAttribute('src') || n.getAttribute('data-src') || '').trim();
+              const alt = (n.getAttribute('alt') || '').trim();
+              // 只保留真实 http(s) 外链图；占位图/懒加载空 src 一律跳过——绝不产出畸形 ![]() 节点
+              if (!/^https?:\/\//i.test(src)) return alt ? '（图：' + alt + '）' : '';
+              return '![' + alt.replace(/[\[\]]/g, '') + '](' + src + ')';
+            }
+            case 'BLOCKQUOTE':
+              return inline(n).split('\n').map((l) => '> ' + l).join('\n') + '\n\n';
+            case 'UL':
+              return [...n.children].filter((c) => c.tagName === 'LI').map((li) => '- ' + inline(li)).join('\n') + '\n\n';
+            case 'OL':
+              return [...n.children].filter((c) => c.tagName === 'LI').map((li, i) => i + 1 + '. ' + inline(li)).join('\n') + '\n\n';
+            case 'HR': return '---\n\n';
+            case 'TABLE': {
+              const rows = [...n.querySelectorAll('tr')].map((tr) =>
+                [...tr.children].map((td) => inline(td).replace(/\|/g, '\\|')).join(' | ')
+              ).filter(Boolean);
+              if (!rows.length) return '';
+              return rows[0] + '\n' + rows[0].split(' | ').map(() => '---').join(' | ') + '\n' + rows.slice(1).join('\n') + '\n\n';
+            }
+            case 'FIGURE': case 'FIGCAPTION': case 'ARTICLE': case 'SECTION': case 'MAIN': case 'DIV': case 'SPAN': {
+              const out = [];
+              walk(n, out);
+              return out.join('');
+            }
+            default: return inline(n);
+          }
+        }
+        function htmlToMd(html) {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const out = [];
+          walk(doc.body, out);
+          return out.join('').replace(/ /g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        }
+        document.addEventListener(
+          'paste',
+          (e) => {
+            const t = e.target;
+            if (!t || !t.closest || !t.closest('.cm-editor, .cm-content, [role="textbox"]')) return; // 只管正文/Markdown 编辑器
+            const cd = e.clipboardData;
+            if (!cd) return;
+            if (cd.files && cd.files.length) return; // 截图/文件粘贴 → 放行给 Decap 原上传管线
+            const html = cd.getData('text/html');
+            if (!html) return; // 纯文本粘贴（含手抄 Markdown）→ 放行，已验证无崩溃
+            e.preventDefault();
+            e.stopImmediatePropagation(); // 冒泡/捕获全截断，Decap 粘贴管线不再看到该事件
+            const md = htmlToMd(html) || cd.getData('text/plain') || '';
+            try {
+              document.execCommand('insertText', false, md);
+            } catch (err) {
+              console.warn('[admin] 富文本粘贴转换插入失败，可改用「无格式粘贴」：', err);
+            }
+          },
+          true
+        );
+        console.log('[admin] 富文本粘贴防护已启用（HTML→Markdown 转换 + 阻断自动抓图）');
+      })();
+    </script>
   </body>
 </html>
